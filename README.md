@@ -63,7 +63,8 @@ matchlens/detect/          one module per moment type, MatchContext holds the go
 matchlens/summary.py       MatchSummary
 matchlens/service.py       per-match cache used by the API and scripts
 matchlens/llm/             provider interface, Ollama client, FakeProvider (Phase 2)
-matchlens/recap/           context builder, validators, pipeline, fallback, cache (Phase 2)
+matchlens/recap/           context builder, validators, rules, pipeline, fallback, cache (Phase 2); translate, names_i18n (Phase 3)
+data/names/                Hindi and Tamil name maps (committed, edit by hand)
 prompts/                   prompt files (Phase 2); editing one invalidates cached outputs
 docs/data_notes.md         the real StatsBomb fields this code relies on
 ```
@@ -158,8 +159,8 @@ If Ollama is not running the script exits with a message saying how to start it.
 | `POST /matches/{id}/recap` body `{"audience": "analyst", "length": "medium", "language": "en", "refresh": false}` | recap, validation report, model name, generation time, `cached` |
 | `GET /matches/{id}/moments/{moment_id}/explain?audience=&language=` | `why_it_mattered`, `context`, `cites`, validation report |
 
-`audience` is `analyst`, `broadcaster` or `fan`; `length` is `short` or `medium`; `language` is `en` for now (the
-parameter exists everywhere so Hindi and Tamil can be added in Phase 3 with a `prompts/language_<code>.md` file).
+`audience` is `analyst`, `broadcaster` or `fan`; `length` is `short` or `medium`; `language` is `en`, `hi` or `ta`
+(see Phase 3 below).
 A server that is not running gives HTTP 503 with a hint; `/docs` has the schemas.
 
 ### How validation works
@@ -202,8 +203,54 @@ any roster name. Prompts forbid all of these, but nothing enforces it.
 ### Tests
 
 `python -m pytest` runs everything offline. The Ollama client is tested with a mock HTTP transport, the pipeline with a
-`FakeProvider`. `tests/test_ollama_integration.py` is marked `needs_ollama` and is skipped unless a server with the
-configured model is reachable.
+`FakeProvider`. `tests/test_ollama_integration.py` and `tests/test_ollama_translation.py` are marked `needs_ollama` and
+are skipped unless a server with the configured model is reachable.
+
+## Phase 3: Hindi and Tamil
+
+Nothing is generated directly in Hindi or Tamil. The English recap or explanation is generated and validated first (all
+of Phase 2), then each paragraph is translated on its own and checked again.
+
+```powershell
+python scripts/generate_recap.py --language hi --back-translate
+python scripts/generate_recap.py --audience all --language all --back-translate --out recaps_all.md
+```
+
+`--language en|hi|ta|all`. `--back-translate` asks the model to translate every Hindi or Tamil paragraph back to English and
+prints it under the paragraph, so a person can judge meaning drift. It is never used to accept or reject a translation.
+Over HTTP, `{"language": "hi"}` on the recap endpoint and `?language=ta` on the explain endpoint. The result carries
+`source_recap` (the validated English), each paragraph's `language` and `note`, and `report.translation`.
+
+### What is checked on each translated paragraph
+
+1. **Numbers.** The translation must contain exactly the English numbers, as Western digits (any Devanagari or Tamil digit
+   is converted to 0-9 first, and the report notes it). That covers scores, minutes (`90+3'`), xG and counts. Number words in
+   the English ("two goals", "twice") are shown to the model as digits; a digit for a spelt-out number or ordinal ("second"
+   -> 2) is not counted as invented.
+2. **Names.** Every player and team named in the English must appear as spelt in `data/names/{lang}.json`. A name written in
+   several words in the English ("Di María") may not shrink to one word. Names in Latin letters, names that are not in the
+   English, and text not mostly in the right script all fail.
+3. **Wording.** The Hindi and Tamil banned-phrase and opinion-word lists in `config.py` (substring match, so inflected
+   forms are caught).
+4. **Citations** are copied from the English paragraph, never regenerated.
+
+One retry with the exact errors. If it still fails, that paragraph is shown in English with a note in the target
+language and in English; nothing is dropped, and the report lists what failed. Results that contain such a paragraph are not
+cached, so the next request tries again.
+
+### Name maps and review
+
+`data/names/hi.json` and `data/names/ta.json` map each English display name (and the two team names) to its spelling in
+Hindi or Tamil script. Missing names are written by the model once; existing entries are never overwritten. **These files
+are first drafts, not reviewed: correct them by hand and set `"reviewed": true`.** Editing a map invalidates cached
+translations. The Hindi and Tamil banned and opinion lists in `config.py` (`BANNED_PHRASES`, `OPINION_WORDS`,
+`BANNED_PHRASE_EXEMPT`) are also first drafts marked for review.
+
+### What this does not catch
+
+A translation can keep every number and name and still change the meaning (a verb, who did what, "regained" read as
+"maintained"). Use `--back-translate` and a Hindi or Tamil reader to judge it. Tamil in particular should be labelled
+experimental until someone has reviewed it.
 
 ## Attribution
 

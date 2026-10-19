@@ -5,6 +5,7 @@ The checks are deliberately lenient when a sentence is ambiguous (no team or min
 explicit, so a false alarm costs a retry but a real mistake never passes silently.
 """
 import re
+import unicodedata
 
 from .. import config
 from ..models import Moment
@@ -27,19 +28,25 @@ def _word(phrase: str) -> str:
 
 
 # ---- rule 3 and 4: banned phrases and opinion words ----------------------------------------------------
-def _find_listed(text: str, words: tuple[str, ...], exempt: tuple[str, ...] = ()) -> list[str]:
-    folded = fold(text)
-    for phrase in exempt:  # e.g. "Champions League" inside the competition name is data, not outside knowledge
-        if phrase:
-            folded = folded.replace(fold(phrase), " " * len(phrase))
-    return [w for w in words if re.search(_word(fold(w)), folded)]
+def _find_listed(text: str, words: tuple[str, ...], exempt: tuple[str, ...] = (), language: str = "en") -> list[str]:
+    """Listed words found in `text`. English matches whole words; Hindi and Tamil match as substrings (stems)."""
+    if language == "en":
+        folded = fold(text)
+        for phrase in exempt:  # e.g. "Champions League" inside the competition name is data, not outside knowledge
+            if phrase:
+                folded = folded.replace(fold(phrase), " " * len(phrase))
+        return [w for w in words if re.search(_word(fold(w)), folded)]
+    plain = unicodedata.normalize("NFC", text)
+    for phrase in exempt + config.BANNED_PHRASE_EXEMPT.get(language, ()):
+        plain = plain.replace(unicodedata.normalize("NFC", phrase), " ")
+    return [w for w in words if unicodedata.normalize("NFC", w) in plain]
 
 
 def check_banned_phrases(text: str, language: str, exempt: tuple[str, ...] = ()) -> list[str]:
     words = config.BANNED_PHRASES.get(language, ())
     return [
         f"uses the banned word {w!r}: it is outside knowledge or not in the data, so leave it out"
-        for w in _find_listed(text, words, exempt)
+        for w in _find_listed(text, words, exempt, language)
     ]
 
 
@@ -49,7 +56,7 @@ def check_opinion_words(text: str, audience: str, language: str) -> list[str]:
     words = config.OPINION_WORDS.get(language, ())
     return [
         f"uses the opinion word {w!r}: describe the goal or shot by its facts only (kind, scorer, assist, minute)"
-        for w in _find_listed(text, words)
+        for w in _find_listed(text, words, language=language)
     ]
 
 

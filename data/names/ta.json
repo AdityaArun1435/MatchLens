@@ -1,0 +1,28 @@
+{
+  "language": "ta",
+  "reviewed": false,
+  "note": "First draft written by the model. Correct any name by hand and set reviewed to true; existing entries are never overwritten.",
+  "names": {
+    "Argentina": "அர்ஜென்டினா",
+    "France": "பிரான்சு",
+    "Lionel Messi": "லியோனல் மெஸ்ஸி",
+    "Ángel Di María": "ங்கெல் டி மாரியா",
+    "Alexis Mac Allister": "அலெக்சிஸ் மாக் ஆலிஸ்டர்",
+    "Kylian Mbappé": "கியோலியன் ம்பபே",
+    "Marcus Thuram": "மார்கஸ் தூரம்",
+    "Germán Pezzella": "ஜெர்மான் பெச்செல்லா",
+    "Randal Kolo Muani": "ராண்டல் கோலோ முநியி",
+    "Kingsley Coman": "கிங்ஸ்லி கோமான்",
+    "Paulo Dybala": "பாலோ டிபலா",
+    "Aurélien Tchouaméni": "அரூரியன் த்சோவாமெனி",
+    "Leandro Paredes": "லீந்த்ரோ பாரெடெஸ்",
+    "Gonzalo Montiel": "கொன்சாலோ மான்டியெல்",
+    "Ibrahima Konaté": "ஐப்ராஹிமா கொனாடே",
+    "Julián Álvarez": "ஜுலியான் அல்வாரேஸ்",
+    "Nahuel Molina": "நாஹுல் மோலினா",
+    "Adrien Rabiot": "அட்ரியன் ராபியோ",
+    "Eduardo Camavinga": "எடுார்டோ காமாவின்கா",
+    "Enzo Fernandez": "என்சோ ஃபெர்னாண்டீஸ்",
+    "Lautaro Martínez": "லாட்டாரோ மார்டினெஸ்"
+  }
+}

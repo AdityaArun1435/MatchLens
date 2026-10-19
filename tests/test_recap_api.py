@@ -81,7 +81,7 @@ def test_unexpected_model_server_error_is_502(client, mid):
 def test_bad_parameters_and_unknown_ids(client, mid):
     use(FakeProvider([GOOD]))
     assert client.post(f"/matches/{mid}/recap", json={"audience": "pundit"}).status_code == 422
-    assert client.post(f"/matches/{mid}/recap", json={"language": "hi"}).status_code == 422  # Phase 3
+    assert client.post(f"/matches/{mid}/recap", json={"language": "fr"}).status_code == 422
     assert client.post("/matches/1/recap").status_code == 404
     assert client.get(f"/matches/{mid}/moments/m_999/explain").status_code == 404
     assert client.get(f"/matches/{mid}/moments/m_001/explain", params={"audience": "x"}).status_code == 422

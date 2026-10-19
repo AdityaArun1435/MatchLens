@@ -7,6 +7,8 @@ Usage (PowerShell or any shell):
     python scripts/generate_recap.py --template                   # deterministic baseline, no LLM
     python scripts/generate_recap.py --explain m_005 --audience broadcaster
     python scripts/generate_recap.py --model gemma3:12b           # override the model for this run
+    python scripts/generate_recap.py --language hi --back-translate  # Hindi recap (translated from validated English)
+    python scripts/generate_recap.py --audience all --language all --back-translate --out recaps_hi_ta.md
 """
 import argparse
 import sys
@@ -17,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from matchlens import config, loader, service  # noqa: E402
 from matchlens.llm import LLMError, LLMUnavailable, OllamaProvider  # noqa: E402
-from matchlens.recap import pipeline  # noqa: E402
+from matchlens.recap import pipeline, translate  # noqa: E402
 from matchlens.recap.fallback import fallback_explanation, fallback_recap  # noqa: E402
 from matchlens.recap.models import RecapRequest, ValidationReport  # noqa: E402
 
@@ -36,14 +38,66 @@ def render_report(report: ValidationReport) -> list[str]:
     for d in report.dropped:
         lines.append(f"  dropped paragraph {d.index}: {d.text!r} cites {d.cites}")
     lines += [f"  note: {n}" for n in report.notes]
+    if report.translation:
+        tr = report.translation
+        lines.append(
+            f"translation ({tr.language}): units={len(tr.units)} retried={tr.retries} english_fallback={tr.fallbacks} "
+            f"names_added={len(tr.names_added)} names_missing={len(tr.names_missing)} translation_time={tr.seconds}s"
+        )
+        for u in tr.units:
+            if u.attempts != 1 or u.status != "translated" or u.notes:
+                lines.append(f"  {u.unit}: {u.status} after {u.attempts} attempt(s)")
+                lines += [f"    - {e}" for e in u.errors] + [f"    - note: {n}" for n in u.notes]
+        if tr.names_missing:
+            lines.append(f"  names without a spelling: {', '.join(tr.names_missing)}")
     return lines
 
 
-def render_recap(recap, header: str, report: ValidationReport) -> list[str]:
-    lines = [header, "", recap.title, ""]
-    for p in recap.paragraphs:
-        lines += [f"{p.text} [{', '.join(p.cites)}]", ""]
+def render_recap(recap, header: str, report: ValidationReport, backs: dict[str, str] | None = None) -> list[str]:
+    backs = backs or {}
+    lines = [header, "", recap.title]
+    if "title" in backs:
+        lines.append(f"  (back-translated: {backs['title']})")
+    lines.append("")
+    for i, p in enumerate(recap.paragraphs, start=1):
+        lines.append(f"{p.text} [{', '.join(p.cites)}]")
+        if p.note:
+            lines.append(f"  NOTE: {p.note}")
+        if f"paragraph {i}" in backs:
+            lines.append(f"  (back-translated: {backs[f'paragraph {i}']})")
+        lines.append("")
     return lines + render_report(report) + [""]
+
+
+def back_translations(res, provider) -> dict[str, str]:
+    """English back-translation of every translated unit, for a human to judge meaning drift."""
+    lang = res.language
+    out = {"title": translate.back_translate(res.recap.title, lang, provider)}
+    for i, p in enumerate(res.recap.paragraphs, start=1):
+        if p.language == lang:
+            out[f"paragraph {i}"] = translate.back_translate(p.text, lang, provider)
+    return out
+
+
+def one(match, args, provider, audience: str, language: str) -> list[str]:
+    if args.explain:
+        res = pipeline.get_explanation(match, args.explain, audience, language, provider, args.refresh)
+        ex = res.explanation
+        lines = [
+            f"=== explain {args.explain} / {audience} / {language} | {res.model} | {res.generation_seconds}s"
+            f"{' (cached)' if res.cached else ''} ===", "",
+            f"Why it mattered: {ex.why_it_mattered}", f"Context: {ex.context}", f"[{', '.join(ex.cites)}]",
+        ]
+        lines += [f"  NOTE: {n}" for n in ex.notes]
+        return lines + [""] + render_report(res.report) + [""]
+    req = RecapRequest(audience=audience, length=args.length, language=language, refresh=args.refresh)
+    res = pipeline.get_recap(match, req, provider)
+    header = (
+        f"=== {audience} / {args.length} / {language} | {res.model} | {res.generation_seconds}s"
+        f"{' (cached)' if res.cached else ''} ==="
+    )
+    backs = back_translations(res, provider) if args.back_translate and language != "en" else None
+    return render_recap(res.recap, header, res.report, backs)
 
 
 def main() -> None:
@@ -52,7 +106,8 @@ def main() -> None:
     p.add_argument("--match", type=int, help="match id; defaults to the 2022 World Cup final")
     p.add_argument("--audience", default="analyst", choices=[*config.AUDIENCES, "all"])
     p.add_argument("--length", default="medium", choices=config.LENGTHS)
-    p.add_argument("--language", default="en", choices=config.LANGUAGES)
+    p.add_argument("--language", default="en", choices=[*config.LANGUAGES, "all"])
+    p.add_argument("--back-translate", action="store_true", help="also translate each hi/ta recap back to English (not used for validation)")
     p.add_argument("--explain", metavar="MOMENT_ID", help="explain one moment instead of writing a recap")
     p.add_argument("--template", action="store_true", help="print the deterministic template recap (no LLM)")
     p.add_argument("--refresh", action="store_true", help="ignore the cache")
@@ -70,25 +125,12 @@ def main() -> None:
     else:
         provider = OllamaProvider(model=args.model)
         audiences = list(config.AUDIENCES) if args.audience == "all" else [args.audience]
+        languages = list(config.LANGUAGES) if args.language == "all" else [args.language]
         started = time.perf_counter()
         try:
             for audience in audiences:
-                if args.explain:
-                    res = pipeline.get_explanation(match, args.explain, audience, args.language, provider, args.refresh)
-                    ex = res.explanation
-                    out += [
-                        f"=== explain {args.explain} / {audience} / {args.language} | {res.model} | {res.generation_seconds}s"
-                        f"{' (cached)' if res.cached else ''} ===", "",
-                        f"Why it mattered: {ex.why_it_mattered}", f"Context: {ex.context}", f"[{', '.join(ex.cites)}]", "",
-                        *render_report(res.report), "",
-                    ]
-                else:
-                    res = pipeline.get_recap(match, RecapRequest(audience=audience, length=args.length, language=args.language, refresh=args.refresh), provider)
-                    header = (
-                        f"=== {audience} / {args.length} / {args.language} | {res.model} | {res.generation_seconds}s"
-                        f"{' (cached)' if res.cached else ''} ==="
-                    )
-                    out += render_recap(res.recap, header, res.report)
+                for language in languages:
+                    out += one(match, args, provider, audience, language)
         except LLMUnavailable as exc:
             print(f"Ollama is not available: {exc}", file=sys.stderr)
             sys.exit(2)
