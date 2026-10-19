@@ -42,9 +42,9 @@ def load_lineups(match_id: int, **kw: Any) -> list[dict]:
     return get_json(f"lineups/{match_id}.json", **kw)
 
 
-def find_match(query: dict) -> dict:
+def find_match(query: dict, **kw: Any) -> dict:
     """Resolve a match from a {competition_id, season_id, home, away, stage} query."""
-    matches = load_season_matches(query["competition_id"], query["season_id"])
+    matches = load_season_matches(query["competition_id"], query["season_id"], **kw)
     hits = [
         m
         for m in matches
@@ -97,8 +97,8 @@ def load_index() -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_match_meta(match_id: int, competition_id: int, season_id: int) -> dict:
-    for m in load_season_matches(competition_id, season_id):
+def load_match_meta(match_id: int, competition_id: int, season_id: int, **kw: Any) -> dict:
+    for m in load_season_matches(competition_id, season_id, **kw):
         if m["match_id"] == match_id:
             return m
     raise LookupError(f"match {match_id} not in competition {competition_id} season {season_id}")

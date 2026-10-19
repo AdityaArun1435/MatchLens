@@ -41,11 +41,14 @@ def process(meta: MatchMeta, raw_events: list[dict]) -> ProcessedMatch:
 
 def resolve_ids(match_id: int, *, allow_network: bool = False) -> tuple[int, int]:
     """Find (competition_id, season_id) for a match id: registry, then cached season files, then the network."""
-    for e in loader.load_index() if (loader.config.RAW_DIR / loader.INDEX_FILE).exists() else []:
-        if e["match_id"] == match_id:
-            return e["competition_id"], e["season_id"]
+    try:
+        for e in loader.load_index():
+            if e["match_id"] == match_id:
+                return e["competition_id"], e["season_id"]
+    except FileNotFoundError:
+        pass
     for path in sorted((loader.config.RAW_DIR / "matches").glob("*/*.json")):
-        if any(m["match_id"] == match_id for m in loader.get_json(f"matches/{path.parent.name}/{path.name}")):
+        if any(m["match_id"] == match_id for m in loader.get_json(f"matches/{path.parent.name}/{path.name}", offline_only=True)):
             return int(path.parent.name), int(path.stem)
     if allow_network:
         for c in loader.load_competitions():
@@ -58,7 +61,7 @@ def resolve_ids(match_id: int, *, allow_network: bool = False) -> tuple[int, int
 @lru_cache(maxsize=32)
 def get_match(match_id: int, allow_network: bool = False) -> ProcessedMatch:
     comp, season = resolve_ids(match_id, allow_network=allow_network)
-    meta = build_meta(loader.load_match_meta(match_id, comp, season))
+    meta = build_meta(loader.load_match_meta(match_id, comp, season, offline_only=not allow_network))
     return process(meta, loader.load_events(match_id, offline_only=not allow_network))
 
 
