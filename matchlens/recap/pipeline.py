@@ -118,7 +118,7 @@ def run_recap(
         report.method, report.fallback_reason = "fallback", "the match has no detected moments"
         return fallback_recap(match, length, cutoff), report
 
-    validator = Validator(match, ctx)
+    validator = Validator(match, ctx, audience, language)
     lo_hi = config.PARAGRAPHS_PER_LENGTH[length]
     system = prompts.load("system_base")
     user = prompts.render(
@@ -183,7 +183,7 @@ def run_explanation(
 ) -> tuple[MomentExplanation, ValidationReport]:
     ctx: Context = build_context(match, min_importance=0.0, target=moment_id)
     report = ValidationReport(method="llm")
-    validator = Validator(match, ctx)
+    validator = Validator(match, ctx, audience, language)
     system = prompts.load("system_base")
     user = prompts.render(
         prompts.load("explain_task"),

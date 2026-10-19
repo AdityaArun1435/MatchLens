@@ -175,6 +175,18 @@ Each paragraph (and for explanations each text field) must pass all of these:
    name, ignoring accents and case). Capitalised words that are not teams, roster players or common sentence openers
    (`NAME_CHECK_SENTENCE_STARTERS` in `config.py`) are treated as invented names. The title may not name players at all.
 
+4. **Score-state verbs.** "took the lead", "went ahead", "equalised", "levelled", "won" and "drew" are checked against the
+   score before and after the cited goal moments (and the goals behind a cited quick-response moment). A named minute narrows
+   the check to the goal at that minute; a named team must be the side that scored. "Won" and "drew" are checked against the
+   final score, the score after 90 minutes and the shootout winner.
+5. **Shootout claims.** The model sees the kicks as a numbered list (kick, team, taker, result). A sentence in a paragraph that
+   cites the shootout is checked for ordinals ("first penalty", "opening kick", "France's third penalty") and for a named
+   taker scoring, missing or being saved. Rules are in `matchlens/recap/rules.py`.
+6. **Banned phrases.** `BANNED_PHRASES` in `config.py` (title, trophy, champions, history, hosts, favourites, stadium, crowd,
+   record, ...) fails for every audience. The competition and stage text from the data is exempt.
+7. **Opinion words.** `OPINION_WORDS` in `config.py` (dramatic, well-taken, stunning, ...) fails for the analyst and the
+   broadcaster and is allowed for the fan (`OPINION_ALLOWED_AUDIENCES`).
+
 If anything fails, the model is called once more with the exact errors listed. The attempt with more valid paragraphs
 wins; invalid paragraphs are dropped; if none survives, the deterministic template recap is used
 (`matchlens/recap/fallback.py`, also the baseline to compare the model against). A model server that is not running is
@@ -184,7 +196,7 @@ length, language, model and a hash of the files in `prompts/`; editing a prompt 
 
 What validation cannot see: claims that use no numbers or names (who dominated, why something happened), correct numbers
 attached to the wrong thing (a real minute given to the wrong goal when both moments are cited), outside knowledge
-phrased without names or numbers, tone rules for the fan and broadcaster modes, and misspelt names that are not close to
+phrased without names or numbers, tone beyond the opinion-word list, wrong claims that avoid every listed verb or name, and misspelt names that are not close to
 any roster name. Prompts forbid all of these, but nothing enforces it.
 
 ### Tests

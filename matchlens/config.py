@@ -71,6 +71,26 @@ LENGTHS = ("short", "medium")
 LANGUAGES = ("en",)  # Phase 3 adds "hi" and "ta" (plus prompts/language_<code>.md)
 PARAGRAPHS_PER_LENGTH = {"short": (2, 3), "medium": (4, 6)}
 
+# Wording the model must not use (checked on whole words, accents and case ignored; a hyphen also matches a space).
+# These are outside knowledge or colour that the data does not support. Applies to every audience.
+BANNED_PHRASES: dict[str, tuple[str, ...]] = {
+    "en": (
+        "title", "titles", "trophy", "trophies", "champion", "champions", "history", "historic", "historical",
+        "host", "hosts", "favourite", "favourites", "favorite", "favorites", "stadium", "crowd", "record", "records",
+    ),
+}
+# Opinion words: rejected for the audiences not listed in OPINION_ALLOWED_AUDIENCES.
+OPINION_WORDS: dict[str, tuple[str, ...]] = {
+    "en": (
+        "dramatic", "well-taken", "well-placed", "well-struck", "brilliant", "stunning", "superb", "crucial", "thrilling",
+        "spectacular", "magnificent", "incredible", "amazing", "sensational", "fantastic", "wonderful", "excellent",
+        "outstanding", "pivotal", "clinical", "clever", "exquisite", "masterful", "world-class", "unlucky", "poor",
+        "hero", "heroic", "disastrous", "terrible", "resilience", "resilient", "impressive", "remarkable", "relentless",
+        "devastating", "dominant", "commanding", "epic", "closely contested", "hard-fought", "nail-biting", "deserved",
+    ),
+}
+OPINION_ALLOWED_AUDIENCES = ("fan",)
+
 RECAP_MIN_IMPORTANCE = 0.5  # recap prompts only include moments at or above this; explanations see all
 
 # Capitalised words the name check lets through (besides team names and the match's own competition/stage text)

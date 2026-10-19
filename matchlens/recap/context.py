@@ -122,11 +122,10 @@ def _facts(m: Moment, home: str, away: str) -> tuple[list[str], set[str]]:
     elif m.type == "penalty_shootout":
         sc = s["shootout_score"]
         out.append(f"result: {home} {sc[home]}-{sc[away]} {away}, winner {s['winner']}")
-        kicks = [
-            f"{k['order']}. {k['team']} {add_name(k['player'])} {'scored' if k['scored'] else outcome_text(k['outcome'])}"
-            for k in s["kicks"]
-        ]
-        out.append("kicks in order: " + "; ".join(kicks))
+        out.append("kicks in order (kick number: team, taker, result):")
+        for k in s["kicks"]:
+            result = "scored" if k["scored"] else outcome_text(k["outcome"])
+            out.append(f"  kick {k['order']}: {k['team']}, {add_name(k['player'])}, {result}")
     return out, names
 
 

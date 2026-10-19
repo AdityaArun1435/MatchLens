@@ -1,12 +1,13 @@
 """Checks on model output: citations, numbers and player names. Pure functions, no LLM."""
 import re
-import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
 
 from .. import config
 from ..service import ProcessedMatch
+from . import rules
 from .context import Context
+from .text_utils import fold  # noqa: F401  (re-exported)
 
 # ---- text helpers ------------------------------------------------------------------------------
 _ID = re.compile(r"\[?\bm_\d+\b\]?")
@@ -18,15 +19,6 @@ def strip_ids(text: str) -> tuple[str, bool]:
     cleaned = re.sub(r"\s{2,}", " ", _ID.sub("", text)).strip()
     cleaned = re.sub(r"\s+([.,;:!?])", r"\1", cleaned)
     return cleaned, cleaned != text.strip()
-
-
-def fold(text: str) -> str:
-    """Lower-case and remove accents, one output character per input character."""
-    out = []
-    for ch in text:
-        base = "".join(c for c in unicodedata.normalize("NFD", ch) if not unicodedata.combining(c))
-        out.append(base.lower() if len(base) == 1 else ch.lower())
-    return "".join(out)
 
 
 # ---- numbers -----------------------------------------------------------------------------------
@@ -109,8 +101,8 @@ def _variants(p: RosterPlayer, blocked: set[str]) -> set[str]:
 
 
 class Validator:
-    def __init__(self, match: ProcessedMatch, ctx: Context) -> None:
-        self.match, self.ctx = match, ctx
+    def __init__(self, match: ProcessedMatch, ctx: Context, audience: str = "analyst", language: str = "en") -> None:
+        self.match, self.ctx, self.audience, self.language = match, ctx, audience, language
         meta = match.meta
         self.teams = {meta.home_team, meta.away_team}
         vocab_text = " ".join([*self.teams, meta.competition, meta.season, meta.stage, meta.stadium or ""])
@@ -204,6 +196,29 @@ class Validator:
             before = text[: m.start()].rstrip(" \"'“‘(")
             yield word, (not before) or before[-1] in ".!?:\n", text[m.end() :]
 
+    # ---- wording rules (see rules.py) ----------------------------------------------------------
+    def _exempt(self) -> tuple[str, ...]:
+        m = self.match.meta
+        return (m.competition, m.stage)
+
+    def check_wording(self, text: str) -> list[str]:
+        """Banned phrases (all audiences) and opinion words (not for the fan audience)."""
+        return rules.check_banned_phrases(text, self.language, self._exempt()) + rules.check_opinion_words(
+            text, self.audience, self.language
+        )
+
+    def check_score_verbs(self, text: str, cites: list[str]) -> list[str]:
+        return rules.check_score_verbs(
+            text, cites, self.ctx.moments, self.match.moments, self.match.meta, self.match.summary
+        )
+
+    def check_shootout(self, text: str, cites: list[str]) -> list[str]:
+        takers = {}
+        for p, variants in self.variants.items():
+            takers[p.display] = variants
+            takers.setdefault(p.full, variants)
+        return rules.check_shootout_claims(text, cites, self.ctx.moments, takers, self.match.meta)
+
     # ---- composite ----------------------------------------------------------------------------
     def check_text(self, text: str, cites: list[str]) -> list[str]:
         errors = []
@@ -211,6 +226,9 @@ class Validator:
             errors.append("text is empty or too short")
         errors += self.check_numbers(text, cites)
         errors += self.check_names(text, cites)
+        errors += self.check_wording(text)
+        errors += self.check_score_verbs(text, cites)
+        errors += self.check_shootout(text, cites)
         return errors
 
     def check_paragraph(self, text: str, cites: list[str], must_include: str | None = None) -> list[str]:
@@ -224,4 +242,5 @@ class Validator:
         allowed = allowed_numbers([self.ctx.summary_text])
         errors += [f"title number {_show(t)} is not in the match summary" for t in sorted(numbers_in(title) - allowed, key=str)]
         errors += self.check_names(title, [])
+        errors += self.check_wording(title)
         return errors
