@@ -82,3 +82,24 @@ NAME_CHECK_ALLOWED_WORDS = {
     "Dutch", "Brazilian", "Belgian", "Croatian", "English", "German", "Spanish", "Portuguese", "Moroccan",
     "Pens", "VAR", "I", "A",
 }
+
+# Words that may start a sentence without being a name. A capitalised sentence-initial word outside this list, the
+# teams and the roster is treated as a possible invented player (words ending in -ly / -ing, or followed directly by a
+# comma, pass too). Lower-case here.
+NAME_CHECK_SENTENCE_STARTERS = {
+    "the", "a", "an", "after", "before", "then", "in", "at", "on", "by", "with", "within", "from", "for", "to", "as",
+    "when", "while", "once", "if", "it", "its", "this", "that", "these", "those", "his", "her", "their", "they", "he",
+    "she", "we", "both", "each", "every", "all", "some", "no", "not", "only", "just", "soon", "late", "early", "later",
+    "earlier", "first", "second", "third", "fourth", "last", "next", "another", "other", "one", "two", "three", "four",
+    "five", "six", "seven", "eight", "nine", "ten", "but", "and", "so", "yet", "still", "even", "also", "however",
+    "although", "though", "despite", "meanwhile", "instead", "moments", "minutes", "seconds", "shortly", "there",
+    "here", "what", "how", "why", "who", "which", "where", "over", "under", "up", "down", "back", "away", "home",
+    "level", "ahead", "behind", "extra", "regular", "full", "half", "penalties", "penalty", "shots", "goals", "goal",
+    "chances", "chance", "substitutions", "substitution", "expected", "total", "possession", "shootout", "kick",
+    "kicks", "result", "score", "scores", "final", "match", "game", "team", "teams", "side", "sides", "xg", "from",
+    "into", "through", "between", "across", "against", "around", "until", "since", "during", "throughout", "scoring",
+    "equaliser", "equalised", "levelled", "saved", "missed", "blocked", "wide", "nothing", "nobody", "neither",
+    "either", "such", "more", "most", "many", "much", "few", "several", "now", "today", "tonight", "again", "once",
+    "shot", "assist", "assisted", "window", "previous", "substitute", "card", "cards", "booking",
+    "twice", "overall", "ultimately", "ending", "elsewhere", "neither", "whoever", "somehow", "anyone", "everyone",
+}

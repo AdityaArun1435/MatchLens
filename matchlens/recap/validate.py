@@ -183,22 +183,26 @@ class Validator:
             taken.append((start, end))
             errors.append(f"mentions {text[start:end]!r} ({display}), who is not named in the cited moments")
         # 2. capitalised names that are not on the roster at all
-        for word, at_sentence_start in self._capitalised_words(text):
+        for word, at_sentence_start, after in self._capitalised_words(text):
             f = fold(word)
-            if f in self.known_folded or f in self.roster_tokens or at_sentence_start:
+            if f in self.known_folded or f in self.roster_tokens:
+                continue
+            if at_sentence_start and (
+                f in config.NAME_CHECK_SENTENCE_STARTERS or f.endswith(("ly", "ing")) or after.startswith((",", ";"))
+            ):
                 continue
             errors.append(f"mentions {word!r}, which is not a player or team in the data")
         return errors
 
     @staticmethod
     def _capitalised_words(text: str):
-        """Capitalised words (possessive 's removed) with a flag for 'first word of a sentence'."""
+        """Capitalised words (possessive 's removed), a 'first word of a sentence' flag, and the text right after."""
         for m in _WORD.finditer(text):
             word = re.sub(r"['’]s$", "", m.group())
             if not word[0].isupper() or word.lower() in _PARTICLES:
                 continue
             before = text[: m.start()].rstrip(" \"'“‘(")
-            yield word, (not before) or before[-1] in ".!?:\n"
+            yield word, (not before) or before[-1] in ".!?:\n", text[m.end() :]
 
     # ---- composite ----------------------------------------------------------------------------
     def check_text(self, text: str, cites: list[str]) -> list[str]:

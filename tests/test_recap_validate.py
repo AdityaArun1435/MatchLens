@@ -97,3 +97,27 @@ def test_ids_in_text_are_stripped():
     text, changed = strip_ids("Ben Brook scored [m_001] at 11' (m_002).")
     assert changed and "m_00" not in text and text.startswith("Ben Brook scored")
     assert strip_ids("Plain text.") == ("Plain text.", False)
+
+
+@pytest.mark.parametrize("text", [
+    "Ronaldo scored at 11'.",                      # lone invented surname opening the sentence
+    "Neymar's finish at 11' made it 0-1.",
+    "B led at 11'. Neymar then missed.",
+    "Cristiano Ronaldo scored at 11'.",
+])
+def test_invented_name_is_caught_even_at_the_start_of_a_sentence(match, v, text):
+    g = ids_of(match, "goal", 0)
+    assert any("not a player or team" in e or "who is not named" in e for e in v.check_names(text, [g])), text
+
+
+@pytest.mark.parametrize("text", [
+    "Meanwhile, Ben Brook had scored at 11'.",
+    "Then Ben Brook scored at 11' for a 0-1 lead.",
+    "Brilliantly, B went ahead at 11'.",
+    "Moments earlier, A had nothing at 0-0 and Ben Brook struck at 11'.",
+    "After 11' it was 0-1. Late on, A pushed.",
+    "A trailed 0-1 after Ben Brook scored at 11'.",
+])
+def test_ordinary_sentence_openers_are_not_flagged(match, v, text):
+    g = ids_of(match, "goal", 0)
+    assert v.check_names(text, [g]) == [], text
