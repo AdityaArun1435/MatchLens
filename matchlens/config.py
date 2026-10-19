@@ -6,9 +6,8 @@ RAW_DIR = ROOT / "data" / "raw"
 
 OPEN_DATA_BASE = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
 
-# Resolved and verified from competitions.json / matches.json by fetch_data.py.
+# Queries are resolved against matches.json by scripts/fetch_data.py (never hard-coded ids).
 # FIFA World Cup: competition 43; 2022 season 106; 2018 season 3.
-PRELOADED_MATCHES: dict[int, str] = {}  # filled from data/raw/index.json at runtime
 DEFAULT_MATCH_QUERY = {
     "competition_id": 43,
     "season_id": 106,
@@ -23,13 +22,15 @@ EXTRA_MATCH_QUERIES = [
 
 # Match clock: seconds added to a period's own timestamp to get match time.
 # Regular time and extra time offsets (period -> start in seconds).
-PERIOD_OFFSET_SECONDS = {1: 0, 2: 45 * 60, 3: 90 * 60, 4: 105 * 60}
+PERIOD_OFFSET_SECONDS = {1: 0, 2: 45 * 60, 3: 90 * 60, 4: 105 * 60, 5: 120 * 60}
 PERIOD_END_MINUTE = {1: 45, 2: 90, 3: 105, 4: 120}
 SHOOTOUT_PERIOD = 5
 IN_PLAY_PERIODS = (1, 2, 3, 4)
 
 # Detection thresholds
-BIG_CHANCE_XG = 0.3
+BIG_CHANCE_XG = 0.25
+# Penalty xG (0.78) reflects a refereeing decision, not open play; keep it out of window comparisons.
+EXCLUDE_PENALTIES_FROM_WINDOWS = True
 MOMENTUM_WINDOW_MIN = 10
 MOMENTUM_HOLD_MIN = 5
 MOMENTUM_MIN_LEAD_XG = 0.15  # a leader must lead by at least this much xG (window)
@@ -37,3 +38,14 @@ SUB_WINDOW_MIN = 10
 SUB_XG_DELTA = 0.4  # |after - before| xG
 SUB_SHOT_DELTA = 3  # |after - before| shots
 BUILDUP_MAX_PASSES = 12
+
+# Quick responses (play time, so half-time and the break before extra time do not count)
+QUICK_RESPONSE_BRACE_MIN = 5  # 2+ goals by one team within this many minutes
+QUICK_RESPONSE_REPLY_MIN = 3  # equaliser or lead change within this many minutes of conceding
+
+# Display names come from the lineups nickname field, then the full name. Overrides win over both.
+# Keys are StatsBomb player ids (int) or full names (str).
+DISPLAY_NAME_OVERRIDES: dict[int | str, str] = {
+    22097: "Randal Kolo Muani",  # StatsBomb nickname is "Randal Kolo"
+    27886: "Alexis Mac Allister",  # StatsBomb nickname is "Alexis MacAllister"
+}
