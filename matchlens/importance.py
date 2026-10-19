@@ -10,6 +10,8 @@ Momentum swing
     0.25 + 0.30 * min(xG lead of the new leader / 0.5, 1).
 Substitution impact
     0.15 + 0.25 * min(|xG change per 10 min| / 1.0, 1).
+Quick response
+    0.80, +0.10 if the sequence takes the lead or equalises (score state changes), +0.05 if it ends late (as for goals).
 Penalty shootout 0.95 (it decides the match).
 All results are clamped to [0, 1] and rounded to 2 decimals.
 """
@@ -34,6 +36,10 @@ MOMENTUM_LEAD_FULL = 0.5
 SUB_BASE = 0.15
 SUB_SPAN = 0.25
 SUB_XG_FULL = 1.0
+
+QUICK_RESPONSE_BASE = 0.80
+QUICK_RESPONSE_RESULT_CHANGE = 0.10
+QUICK_RESPONSE_LATE = 0.05
 
 SHOOTOUT = 0.95
 
@@ -65,6 +71,15 @@ def momentum(*, lead_xg: float) -> float:
 
 def substitution(*, xg_change_per_10: float) -> float:
     return _clamp(SUB_BASE + SUB_SPAN * min(abs(xg_change_per_10) / SUB_XG_FULL, 1))
+
+
+def quick_response(*, changes_result: bool, period: int, clock_seconds: float) -> float:
+    late = period >= 3 or (period == 2 and clock_seconds >= LATE_GOAL_CLOCK_SECONDS)
+    return _clamp(
+        QUICK_RESPONSE_BASE
+        + (QUICK_RESPONSE_RESULT_CHANGE if changes_result else 0)
+        + (QUICK_RESPONSE_LATE if late else 0)
+    )
 
 
 def shootout() -> float:

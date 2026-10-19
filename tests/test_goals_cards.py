@@ -66,6 +66,8 @@ def test_big_chance_threshold_configurable():
     from matchlens.detect.chances import detect_big_chances
     c = ctx([shot(1, 1, 100, HOME, 0.2), shot(2, 1, 200, HOME, 0.35)])
     assert len(detect_big_chances(c)) == 1
+    near = ctx([shot(3, 1, 100, HOME, 0.24), shot(4, 1, 200, HOME, 0.26)])  # default threshold is 0.25
+    assert [m.stats["xg"] for m in detect_big_chances(near)] == [0.26]
     assert len(detect_big_chances(c, threshold=0.1)) == 2
 
 

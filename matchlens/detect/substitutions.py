@@ -1,7 +1,7 @@
 """Substitutions followed by a measurable change in the team's xG / shots. Numbers only, no causation."""
 from .. import config, importance
 from ..models import Event, Moment
-from .common import MatchContext, in_period_seconds, period_length_seconds, plural, window_shots
+from .common import MatchContext, Person, people_fields, in_period_seconds, period_length_seconds, plural, window_shots
 
 GROUP_GAP_SECONDS = 120  # same-team subs closer than this are one change (double substitutions)
 MIN_WINDOW_SECONDS = 300  # skip subs that do not leave 5 minutes on both sides inside the period
@@ -48,8 +48,13 @@ def detect_substitutions(
             continue
         opp_b, opp_sb = _side(shots, other, t - w, t)
         opp_a, opp_sa = _side(shots, other, t, t + w)
-        off = [s.player for s in group if s.player]
-        on = [s.detail.get("replacement") for s in group if s.detail.get("replacement")]
+        off_people = [Person(s.player, s.player_id, s.player_display_name or s.player) for s in group if s.player]
+        on_people = [
+            Person(s.detail["replacement"], s.detail.get("replacement_id"), s.detail.get("replacement_display_name") or s.detail["replacement"])
+            for s in group
+            if s.detail.get("replacement")
+        ]
+        off, on = [p.display for p in off_people], [p.display for p in on_people]
         score = ctx.score_before(first.index)
         minutes = w / 60
         moments.append(
@@ -60,7 +65,7 @@ def detect_substitutions(
                 period=first.period,
                 type="substitution_impact",
                 team=team,
-                players=[*off, *on],
+                **people_fields([*off_people, *on_people]),
                 score_before=score,
                 score_after=score,
                 importance=importance.substitution(xg_change_per_10=d_xg),

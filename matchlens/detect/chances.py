@@ -1,7 +1,7 @@
 """Big chances missed: in-play shots at or above the xG threshold that did not score."""
 from .. import config, importance
 from ..models import Moment
-from .common import MatchContext
+from .common import MatchContext, people_fields, person_of
 
 
 def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> list[Moment]:
@@ -16,7 +16,7 @@ def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> lis
         kp = ctx.by_id.get(e.detail.get("key_pass_id") or "")
         if kp:
             evidence.insert(0, kp.id)
-            assist = kp.player
+            assist = person_of(kp)
         moments.append(
             Moment(
                 id="",
@@ -25,12 +25,12 @@ def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> lis
                 period=e.period,
                 type="big_chance_missed",
                 team=e.team,
-                players=[p for p in (e.player, assist) if p],
+                **people_fields([person_of(e), assist]),
                 score_before=before,
                 score_after=before,
                 importance=importance.big_chance(xg=e.xg or 0.0, score_diff_abs=abs(before[0] - before[1])),
                 headline=(
-                    f"{e.team}: {e.player} shot, outcome {e.outcome}, xG {e.xg:.2f}, {e.clock_label}. "
+                    f"{e.team}: {e.player_display_name or e.player} shot, outcome {e.outcome}, xG {e.xg:.2f}, {e.clock_label}. "
                     f"Score {ctx.meta.home_team} {before[0]}-{before[1]} {ctx.meta.away_team}."
                 ),
                 stats={
@@ -38,7 +38,7 @@ def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> lis
                     "outcome": e.outcome,
                     "shot_type": e.detail.get("shot_type"),
                     "body_part": e.detail.get("body_part"),
-                    "assist": assist,
+                    "assist": assist.display if assist else None,
                     "location": e.location,
                     "threshold": threshold,
                 },

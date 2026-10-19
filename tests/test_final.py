@@ -62,7 +62,7 @@ def test_goal_score_progression(final):
 
 def test_second_goal_buildup_found(final):
     g = [m for m in final.moments if m.type == "goal"][1]  # Di Maria 36'
-    assert g.stats["buildup_passes"] >= 4 and g.stats["assist"] == "Alexis Mac Allister"
+    assert g.stats["buildup_passes"] >= 4 and g.stats["assist"] == "Alexis MacAllister"
 
 
 def test_timeline_matches_totals(final):
@@ -79,4 +79,37 @@ def test_period_stoppage_labels(final):
 
 def test_extra_time_goal_records_the_saved_shot_before_it(final):
     g = [m for m in final.moments if m.type == "goal"][4]  # Messi 108'
-    assert [(x["player"], x["outcome"]) for x in g.stats["preceding_shots"]] == [("Lautaro Javier Martínez", "Saved")]
+    assert [(x["player"], x["outcome"]) for x in g.stats["preceding_shots"]] == [("Lautaro Martínez", "Saved")]
+
+
+def test_quick_response_is_mbappes_double(final):
+    (q,) = [m for m in final.moments if m.type == "quick_response"]
+    goals = [m for m in final.moments if m.type == "goal"][2:4]
+    assert q.team == "France" and q.stats["reasons"] == ["brace"]
+    assert q.evidence == [g.evidence[-1] for g in goals]
+    assert q.score_before == (2, 0) and q.score_after == (2, 2)
+    first, second = (g["play_seconds"] for g in q.stats["goals"])
+    assert second - first == pytest.approx(q.stats["span_seconds"], abs=0.15) and 90 < q.stats["span_seconds"] < 100  # 79:24 to 80:59
+    assert first > 80 * 60  # play time includes the 7+ minutes of first-half stoppage
+    assert q.importance >= 0.9
+
+
+def test_big_chances_at_default_threshold(final):
+    chances = [m for m in final.moments if m.type == "big_chance_missed"]
+    assert [(m.player_display_names[0], m.team, m.clock_label, m.stats["outcome"]) for m in chances] == [
+        ("Randal Kolo Muani", "France", "120+3'", "Saved")
+    ]
+    assert chances[0].stats["xg"] == 0.278 and chances[0].stats["assist"] == "Ibrahima Konaté"
+
+
+def test_full_names_and_ids_kept_display_names_in_headlines(final):
+    goal = [m for m in final.moments if m.type == "goal"][0]
+    assert goal.players[0] == "Lionel Andrés Messi Cuccittini" and goal.player_ids[0] == 5503
+    assert goal.player_display_names[0] == "Lionel Messi"
+    pairs = {(f, d) for m in final.moments for f, d in zip(m.players, m.player_display_names) if f != d}
+    assert ("Lionel Andrés Messi Cuccittini", "Lionel Messi") in pairs
+    for m in final.moments:
+        for full, display in pairs:
+            assert full not in m.headline, (m.id, full)
+    kolo = [e for e in final.events if e.player_id == 22097][0]
+    assert kolo.player == "Randal Kolo Muani" and kolo.player_display_name == "Randal Kolo Muani"

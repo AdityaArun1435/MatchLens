@@ -1,7 +1,7 @@
 """Red cards and second yellows. Plain yellows are not moments."""
 from .. import importance
 from ..models import Moment
-from .common import MatchContext
+from .common import MatchContext, people_fields, person_of
 
 _TYPES = {"Red Card": "red_card", "Second Yellow": "second_yellow"}
 
@@ -22,12 +22,12 @@ def detect_cards(ctx: MatchContext) -> list[Moment]:
                 period=e.period,
                 type=_TYPES[card],
                 team=e.team,
-                players=[e.player] if e.player else [],
+                **people_fields([person_of(e)]),
                 score_before=score,
                 score_after=score,
                 importance=importance.card(second_yellow=second, after_shootout=not e.in_play),
                 headline=(
-                    f"{e.team}: {e.player} shown a {'second yellow' if second else 'red'} card, "
+                    f"{e.team}: {e.player_display_name or e.player} shown a {'second yellow' if second else 'red'} card, "
                     f"{'during the shootout period' if not e.in_play else e.clock_label}. "
                     f"Score {ctx.meta.home_team} {score[0]}-{score[1]} {ctx.meta.away_team}."
                 ),

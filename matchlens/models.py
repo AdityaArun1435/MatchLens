@@ -19,6 +19,7 @@ class Event(BaseModel):
     team_id: int | None = None
     player: str | None = None
     player_id: int | None = None
+    player_display_name: str | None = None  # lineup nickname or override; `player` stays the full StatsBomb name
     location: tuple[float, float] | None = None
     outcome: str | None = None
     xg: float | None = None  # shots only; always None for shootout kicks
@@ -50,6 +51,7 @@ MomentType = Literal[
     "momentum_swing",
     "substitution_impact",
     "penalty_shootout",
+    "quick_response",
 ]
 
 
@@ -60,7 +62,9 @@ class Moment(BaseModel):
     period: int
     type: MomentType
     team: str | None
-    players: list[str]
+    players: list[str]  # full StatsBomb names
+    player_ids: list[int | None] = Field(default_factory=list)  # parallel to players
+    player_display_names: list[str] = Field(default_factory=list)  # parallel to players; used in headlines and stats
     score_before: tuple[int, int]  # (home, away), in-play goals only
     score_after: tuple[int, int]
     importance: float = Field(ge=0, le=1)
@@ -82,6 +86,8 @@ class ShootoutKick(BaseModel):
     order: int
     team: str
     player: str
+    player_id: int | None = None
+    player_display_name: str | None = None
     outcome: str
     scored: bool
 

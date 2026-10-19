@@ -64,6 +64,15 @@ docs/data_notes.md         the real StatsBomb fields this code relies on
 
 ## Moment definitions
 
+### Player names
+
+Each event keeps the full StatsBomb name (`player`), the StatsBomb id (`player_id`) and adds `player_display_name`:
+`DISPLAY_NAME_OVERRIDES` in `config.py` (keyed by id or full name) first, then the lineup `player_nickname`, then the
+full name. Moments carry parallel `players` (full names), `player_ids` and `player_display_names`. Headlines and the
+names inside `stats` use display names.
+
+### Moment fields
+
 Every moment has an `id` (`m_001`, in match order), `minute`, `clock_label` (`23'`, `45+2'`, `90+3'`, `Pens`),
 `period`, `type`, `team`, `players`, `score_before` / `score_after` (home, away; in-play goals only),
 `importance` (0 to 1), a one-line `headline`, the `stats` behind it and `evidence` (event ids, all present in
@@ -72,7 +81,7 @@ Every moment has an `id` (`m_001`, in match order), `minute`, `clock_label` (`23
 * **goal**: any in-play goal, including penalties and own goals (credited to the team that benefits). Stats hold
   the goal kind, assist, xG, whether it took the lead or equalised, any earlier shot in the same possession (rebounds)
   and the completed passes of the scoring team in that possession before the shot.
-* **big_chance_missed**: an in-play shot with xG at or above `BIG_CHANCE_XG` (0.3) that did not score.
+* **big_chance_missed**: an in-play shot with xG at or above `BIG_CHANCE_XG` (0.25) that did not score.
 * **red_card** / **second_yellow**: straight reds and second yellows. Plain yellows are not moments.
 * **momentum_swing**: every minute, compare the two teams' xG over the previous 10 minutes. The window leader is the
   team ahead by at least `MOMENTUM_MIN_LEAD_XG` (0.15); otherwise nobody leads. A swing is logged when a different team
@@ -82,6 +91,10 @@ Every moment has an `id` (`m_001`, in match order), `minute`, `clock_label` (`23
   team's xG and shots in the window before and after, inside the same period. Flagged when xG moves by at least 0.4 or
   shots by at least 3 per 10 minutes, up or down. Windows shrink to fit the period; changes without 5 minutes on both
   sides in the period are skipped. Opponent numbers are included for context.
+* **quick_response**: goals bunched together, measured in play time (half-time and the break before extra time do
+  not count). Either 2+ goals by one team within `QUICK_RESPONSE_BRACE_MIN` (5) minutes, or a goal that equalises or
+  takes the lead within `QUICK_RESPONSE_REPLY_MIN` (3) minutes of that team conceding. Overlapping triggers merge into
+  one moment, `stats.reasons` lists which fired, and `evidence` holds only the goal events.
 * **penalty_shootout**: one moment with every kick in order, the tally and the winner.
 
 Penalties awarded in play are excluded from the momentum and substitution windows (`EXCLUDE_PENALTIES_FROM_WINDOWS`),
@@ -92,7 +105,7 @@ in all match totals. Shootout kicks never count towards score, xG or shot totals
 
 `matchlens/importance.py` documents and holds all weights. In short: goals 0.60, +0.30 if the goal takes the lead or
 equalises, +0.10 if late or in extra time; big chances 0.25 + 0.5 x xG (+0.10 when the score is within a goal); red
-card 0.70, second yellow 0.65; shootout 0.95; momentum swings 0.25 to 0.55 by xG lead; substitutions 0.15 to 0.40 by xG change.
+card 0.70, second yellow 0.65; quick response 0.80 (+0.10 if it takes the lead or equalises, +0.05 if late); shootout 0.95; momentum swings 0.25 to 0.55 by xG lead; substitutions 0.15 to 0.40 by xG change.
 
 ## Attribution
 

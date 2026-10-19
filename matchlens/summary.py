@@ -75,7 +75,15 @@ def build_summary(ctx: MatchContext) -> MatchSummary:
         tally = {t: sum(1 for k in kicks if k.team == t and k.outcome == "Goal") for t in teams}
         shootout = {
             "kicks": [
-                ShootoutKick(order=i, team=k.team, player=k.player, outcome=k.outcome, scored=k.outcome == "Goal").model_dump()
+                ShootoutKick(
+                    order=i,
+                    team=k.team,
+                    player=k.player,
+                    player_id=k.player_id,
+                    player_display_name=k.player_display_name or k.player,
+                    outcome=k.outcome,
+                    scored=k.outcome == "Goal",
+                ).model_dump()
                 for i, k in enumerate(kicks, start=1)
             ],
             "score": tally,

@@ -34,6 +34,7 @@ def test_summary_and_moments_filter(client, mid):
 def test_events_filter(client, mid):
     ev = client.get(f"/matches/{mid}/events", params={"from_minute": 100, "to_minute": 105, "period": 3}).json()
     assert ev and all(100 <= e["minute"] <= 105 and e["period"] == 3 for e in ev)
+    assert any(e["player_display_name"] and e["player_id"] for e in ev)
     assert [e["index"] for e in ev] == sorted(e["index"] for e in ev)
 
 

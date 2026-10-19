@@ -5,17 +5,19 @@ from .chances import detect_big_chances
 from .common import MatchContext
 from .goals import detect_goals
 from .momentum import detect_momentum
+from .quick_response import detect_quick_responses
 from .shootout import detect_shootout
 from .substitutions import detect_substitutions
 
 _TYPE_ORDER = {
     "goal": 0,
-    "red_card": 1,
-    "second_yellow": 1,
-    "big_chance_missed": 2,
-    "substitution_impact": 3,
-    "momentum_swing": 4,
-    "penalty_shootout": 5,
+    "quick_response": 1,
+    "red_card": 2,
+    "second_yellow": 2,
+    "big_chance_missed": 3,
+    "substitution_impact": 4,
+    "momentum_swing": 5,
+    "penalty_shootout": 6,
 }
 
 
@@ -24,6 +26,7 @@ def detect_moments(events: list[Event], meta: MatchMeta) -> list[Moment]:
     ctx = MatchContext(events, meta)
     found = [
         *detect_goals(ctx),
+        *detect_quick_responses(ctx),
         *detect_big_chances(ctx),
         *detect_cards(ctx),
         *detect_momentum(ctx),

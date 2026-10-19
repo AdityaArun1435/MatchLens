@@ -1,7 +1,7 @@
 """Goal moments, with the passing build-up from the same possession."""
 from .. import config, importance
 from ..models import Event, Moment
-from .common import Goal, MatchContext, in_period_seconds
+from .common import MatchContext, in_period_seconds, people_fields, person_of
 
 _KIND_TEXT = {
     "open_play": "",
@@ -38,33 +38,24 @@ def _preceding_shots(ctx: MatchContext, anchor: Event, team: str) -> list[Event]
     ]
 
 
-def _result_change(goal: Goal, ctx: MatchContext) -> str:
-    i = ctx.home_away(goal.team)
-    before = goal.score_before[i] - goal.score_before[1 - i]
-    if before < 0:
-        return "equalised" if before == -1 else "reduced_deficit"
-    return "took_lead" if before == 0 else "extended_lead"
-
-
 def detect_goals(ctx: MatchContext) -> list[Moment]:
     moments = []
     for g in ctx.goals:
         e = g.event
         passes = _buildup(ctx, e, g.team)
         prior = _preceding_shots(ctx, e, g.team)
-        change = _result_change(g, ctx)
+        change = ctx.result_change(g)
         assist = None
         if e.type == "Shot" and e.detail.get("key_pass_id") in ctx.by_id:
             kp = ctx.by_id[e.detail["key_pass_id"]]
             if kp.detail.get("goal_assist"):
-                assist = kp.player
+                assist = person_of(kp)
         buildup_seconds = None
         if passes:
             buildup_seconds = round(in_period_seconds(e) - in_period_seconds(passes[0]), 1)
         h, a = g.score_after
-        scorer = g.scorer or "unknown player"
+        scorer = g.scorer.display if g.scorer else "unknown player"
         what = f"own goal by {scorer}" if g.kind == "own_goal" else f"{scorer}{_KIND_TEXT[g.kind]}"
-        players = [p for p in (g.scorer, assist) if p]
         moments.append(
             Moment(
                 id="",
@@ -73,7 +64,7 @@ def detect_goals(ctx: MatchContext) -> list[Moment]:
                 period=e.period,
                 type="goal",
                 team=g.team,
-                players=players,
+                **people_fields([g.scorer, assist]),
                 score_before=g.score_before,
                 score_after=g.score_after,
                 importance=importance.goal(
@@ -84,18 +75,24 @@ def detect_goals(ctx: MatchContext) -> list[Moment]:
                 headline=f"{g.team} goal: {what}, {e.clock_label}. {ctx.meta.home_team} {h}-{a} {ctx.meta.away_team}.",
                 stats={
                     "goal_kind": g.kind,
-                    "scorer": g.scorer,
-                    "assist": assist,
+                    "scorer": g.scorer.display if g.scorer else None,
+                    "assist": assist.display if assist else None,
                     "xg": e.xg,
                     "result_change": change,
                     "body_part": e.detail.get("body_part"),
                     "preceding_shots": [
-                        {"player": p.player, "outcome": p.outcome, "xg": p.xg, "clock": p.clock_label} for p in prior
+                        {"player": p.player_display_name or p.player, "outcome": p.outcome, "xg": p.xg, "clock": p.clock_label}
+                        for p in prior
                     ],
                     "buildup_passes": len(passes),
                     "buildup_seconds": buildup_seconds,
                     "buildup": [
-                        {"player": p.player, "to": p.detail.get("recipient"), "clock": p.clock_label} for p in passes
+                        {
+                            "player": p.player_display_name or p.player,
+                            "to": p.detail.get("recipient_display_name") or p.detail.get("recipient"),
+                            "clock": p.clock_label,
+                        }
+                        for p in passes
                     ],
                 },
                 evidence=[*[x.id for x in sorted([*passes, *prior], key=lambda x: x.index)], *g.evidence],

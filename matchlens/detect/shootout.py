@@ -1,7 +1,7 @@
 """The penalty shootout as a single moment holding the full kick sequence."""
 from .. import importance
 from ..models import Moment
-from .common import MatchContext
+from .common import MatchContext, people_fields, person_of
 
 
 def shootout_kicks(ctx: MatchContext):
@@ -17,10 +17,16 @@ def detect_shootout(ctx: MatchContext) -> list[Moment]:
     winner = None if tally[teams[0]] == tally[teams[1]] else max(tally, key=tally.get)
     score = ctx.score_before(kicks[0].index)
     sequence = [
-        {"order": i, "team": k.team, "player": k.player, "outcome": k.outcome, "scored": k.outcome == "Goal"}
+        {
+            "order": i,
+            "team": k.team,
+            "player": k.player_display_name or k.player,
+            "player_id": k.player_id,
+            "outcome": k.outcome,
+            "scored": k.outcome == "Goal",
+        }
         for i, k in enumerate(kicks, start=1)
     ]
-    players = list(dict.fromkeys(k.player for k in kicks if k.player))
     text = f"{teams[0]} {tally[teams[0]]}-{tally[teams[1]]} {teams[1]}"
     return [
         Moment(
@@ -30,7 +36,7 @@ def detect_shootout(ctx: MatchContext) -> list[Moment]:
             period=kicks[0].period,
             type="penalty_shootout",
             team=winner,
-            players=players,
+            **people_fields([person_of(k) for k in kicks]),
             score_before=score,
             score_after=score,
             importance=importance.shootout(),

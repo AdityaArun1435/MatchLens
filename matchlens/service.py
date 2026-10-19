@@ -6,6 +6,7 @@ from . import loader
 from .detect import detect_moments
 from .detect.common import MatchContext
 from .models import Event, MatchMeta, MatchSummary, Moment
+from .names import build_display_names
 from .normalise import normalise_events
 from .summary import build_summary
 
@@ -34,8 +35,8 @@ def build_meta(m: dict) -> MatchMeta:
     )
 
 
-def process(meta: MatchMeta, raw_events: list[dict]) -> ProcessedMatch:
-    events = normalise_events(raw_events)
+def process(meta: MatchMeta, raw_events: list[dict], lineups: list[dict] | None = None) -> ProcessedMatch:
+    events = normalise_events(raw_events, build_display_names(lineups) if lineups else None)
     return ProcessedMatch(meta, events, detect_moments(events, meta), build_summary(MatchContext(events, meta)))
 
 
@@ -62,7 +63,11 @@ def resolve_ids(match_id: int, *, allow_network: bool = False) -> tuple[int, int
 def get_match(match_id: int, allow_network: bool = False) -> ProcessedMatch:
     comp, season = resolve_ids(match_id, allow_network=allow_network)
     meta = build_meta(loader.load_match_meta(match_id, comp, season, offline_only=not allow_network))
-    return process(meta, loader.load_events(match_id, offline_only=not allow_network))
+    return process(
+        meta,
+        loader.load_events(match_id, offline_only=not allow_network),
+        loader.load_lineups(match_id, offline_only=not allow_network),
+    )
 
 
 def default_match_id() -> int:

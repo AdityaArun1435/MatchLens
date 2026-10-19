@@ -28,7 +28,7 @@ SHOOTOUT_PERIOD = 5
 IN_PLAY_PERIODS = (1, 2, 3, 4)
 
 # Detection thresholds
-BIG_CHANCE_XG = 0.3
+BIG_CHANCE_XG = 0.25
 # Penalty xG (0.78) reflects a refereeing decision, not open play; keep it out of window comparisons.
 EXCLUDE_PENALTIES_FROM_WINDOWS = True
 MOMENTUM_WINDOW_MIN = 10
@@ -38,3 +38,13 @@ SUB_WINDOW_MIN = 10
 SUB_XG_DELTA = 0.4  # |after - before| xG
 SUB_SHOT_DELTA = 3  # |after - before| shots
 BUILDUP_MAX_PASSES = 12
+
+# Quick responses (play time, so half-time and the break before extra time do not count)
+QUICK_RESPONSE_BRACE_MIN = 5  # 2+ goals by one team within this many minutes
+QUICK_RESPONSE_REPLY_MIN = 3  # equaliser or lead change within this many minutes of conceding
+
+# Display names come from the lineups nickname field, then the full name. Overrides win over both.
+# Keys are StatsBomb player ids (int) or full names (str).
+DISPLAY_NAME_OVERRIDES: dict[int | str, str] = {
+    22097: "Randal Kolo Muani",  # StatsBomb nickname is "Randal Kolo"
+}

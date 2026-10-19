@@ -1,8 +1,10 @@
 """Turn raw StatsBomb event dicts into the internal Event model."""
+from collections.abc import Mapping
 from typing import Any
 
 from . import config
 from .models import Event
+from .names import display_name
 
 _TYPE_KEYS = {"Goal Keeper": "goalkeeper", "Ball Receipt*": "ball_receipt"}
 
@@ -39,7 +41,7 @@ def _outcome(raw: dict, key: str) -> str | None:
     return "Complete" if raw["type"]["name"] == "Pass" else None
 
 
-def _detail(raw: dict) -> dict[str, Any]:
+def _detail(raw: dict, names: Mapping[int, str] | None) -> dict[str, Any]:
     t = raw["type"]["name"]
     out: dict[str, Any] = {}
     if t == "Shot":
@@ -49,19 +51,24 @@ def _detail(raw: dict) -> dict[str, Any]:
         out["key_pass_id"] = shot.get("key_pass_id")
     elif t == "Pass":
         p = raw["pass"]
-        out["recipient"] = p.get("recipient", {}).get("name")
+        rec = p.get("recipient", {})
+        out["recipient"] = rec.get("name")
+        out["recipient_id"] = rec.get("id")
+        out["recipient_display_name"] = display_name(names, rec.get("id"), rec.get("name"))
         out["goal_assist"] = bool(p.get("goal_assist"))
         out["shot_assist"] = bool(p.get("shot_assist"))
     elif t == "Substitution":
-        out["replacement"] = raw["substitution"]["replacement"]["name"]
-        out["replacement_id"] = raw["substitution"]["replacement"]["id"]
+        rep = raw["substitution"]["replacement"]
+        out["replacement"] = rep["name"]
+        out["replacement_id"] = rep["id"]
+        out["replacement_display_name"] = display_name(names, rep["id"], rep["name"])
     for block in ("foul_committed", "bad_behaviour"):
         if "card" in raw.get(block, {}):
             out["card"] = raw[block]["card"]["name"]
     return out
 
 
-def normalise_event(raw: dict) -> Event:
+def normalise_event(raw: dict, names: Mapping[int, str] | None = None) -> Event:
     period = raw["period"]
     t = raw["type"]["name"]
     is_shootout = period == config.SHOOTOUT_PERIOD
@@ -87,15 +94,16 @@ def normalise_event(raw: dict) -> Event:
         team_id=team.get("id"),
         player=player.get("name"),
         player_id=player.get("id"),
+        player_display_name=display_name(names, player.get("id"), player.get("name")),
         location=(loc[0], loc[1]) if loc else None,
         outcome=_outcome(raw, _type_key(t)),
         xg=xg,
         possession=raw.get("possession"),
         possession_team=(raw.get("possession_team") or {}).get("name"),
         related_ids=raw.get("related_events", []),
-        detail=_detail(raw),
+        detail=_detail(raw, names),
     )
 
 
-def normalise_events(raw_events: list[dict]) -> list[Event]:
-    return sorted((normalise_event(r) for r in raw_events), key=lambda e: e.index)
+def normalise_events(raw_events: list[dict], names: Mapping[int, str] | None = None) -> list[Event]:
+    return sorted((normalise_event(r, names) for r in raw_events), key=lambda e: e.index)
