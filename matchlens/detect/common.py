@@ -103,6 +103,14 @@ def window_shots(events: list[Event], period: int) -> list[Event]:
     ]
 
 
+_OUTCOME_TEXT = {"Off T": "off target", "Saved to Post": "saved onto the post", "Saved Off Target": "saved, off target"}
+
+
+def outcome_text(raw: str) -> str:
+    """StatsBomb shot outcome as plain lower-case words ("Off T" -> "off target")."""
+    return _OUTCOME_TEXT.get(raw, raw.lower())
+
+
 def plural(n: int, word: str) -> str:
     return f"{n} {word}" if n == 1 else f"{n} {word}s"
 

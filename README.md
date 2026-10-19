@@ -1,8 +1,11 @@
-# MatchLens (Phase 1: data layer)
+# MatchLens
 
-Local-only football match intelligence. Phase 1 loads StatsBomb open data, normalises the events, detects
-the key moments of a match with plain Python, and serves everything through a small FastAPI app. No LLM,
-no ML, no paid APIs, no keys.
+Local-only football match intelligence.
+
+* **Phase 1** (data layer): loads StatsBomb open data, normalises the events, detects
+the key moments of a match with plain Python, and serves everything through a small FastAPI app. No LLM in this phase, no ML.
+* **Phase 2** (section below): grounded recaps and moment explanations written by a local LLM through Ollama,
+  checked by the backend before anything is shown. No paid APIs, no keys in either phase.
 
 Default match: **2022 FIFA World Cup final, Argentina v France** (3-3 after extra time, Argentina won 4-2 on penalties).
 Two more are preloaded: **France 4-3 Argentina** (2018 round of 16, seven goals) and **Netherlands 2-2 Argentina**
@@ -59,6 +62,9 @@ matchlens/importance.py    importance scoring, one place to tune
 matchlens/detect/          one module per moment type, MatchContext holds the goal log
 matchlens/summary.py       MatchSummary
 matchlens/service.py       per-match cache used by the API and scripts
+matchlens/llm/             provider interface, Ollama client, FakeProvider (Phase 2)
+matchlens/recap/           context builder, validators, pipeline, fallback, cache (Phase 2)
+prompts/                   prompt files (Phase 2); editing one invalidates cached outputs
 docs/data_notes.md         the real StatsBomb fields this code relies on
 ```
 
@@ -106,6 +112,98 @@ in all match totals. Shootout kicks never count towards score, xG or shot totals
 `matchlens/importance.py` documents and holds all weights. In short: goals 0.60, +0.30 if the goal takes the lead or
 equalises, +0.10 if late or in extra time; big chances 0.25 + 0.5 x xG (+0.10 when the score is within a goal); red
 card 0.70, second yellow 0.65; quick response 0.80 (+0.10 if it takes the lead or equalises, +0.05 if late); shootout 0.95; momentum swings 0.25 to 0.55 by xG lead; substitutions 0.15 to 0.40 by xG change.
+
+## Phase 2: grounded recaps and explanations (local LLM)
+
+The model never sees raw events. It sees one match's `MatchSummary` and `Moment` list rendered as compact text
+(`matchlens/recap/context.py`), writes paragraphs that cite moment ids, and the backend checks every paragraph.
+
+### Ollama setup on Windows
+
+```powershell
+winget install Ollama.Ollama          # or download from https://ollama.com
+ollama --version
+ollama pull qwen3:8b                  # about 5 GB, fits in 8 GB of VRAM with room for the context
+ollama run qwen3:8b "Say hello"       # quick test; the Ollama app/service listens on http://localhost:11434
+```
+
+Pick a model by editing `OLLAMA_MODEL` in `matchlens/config.py` or setting `MATCHLENS_OLLAMA_MODEL` for one session:
+
+```powershell
+$env:MATCHLENS_OLLAMA_MODEL = "gemma3:12b"
+```
+
+Any instruct model that supports structured output works. On an 8 GB GPU stay at roughly 8B parameters with a
+4-bit build. Models with a thinking mode are run with thinking disabled (`OLLAMA_DISABLE_THINKING`); the client
+retries without the flag for models that do not support it. Cached outputs are keyed by model name, so switching
+models never serves another model's text.
+
+### Generate
+
+```powershell
+python scripts/generate_recap.py --audience all                       # analyst, broadcaster, fan for the default match
+python scripts/generate_recap.py --match 7580 --audience fan --length short
+python scripts/generate_recap.py --explain m_005 --audience broadcaster
+python scripts/generate_recap.py --template                           # deterministic baseline, no LLM
+python scripts/generate_recap.py --audience all --out recaps.md       # also save to a file
+```
+
+Output shows each paragraph followed by its `[m_00x]` citations, the validation report and timings.
+If Ollama is not running the script exits with a message saying how to start it.
+
+### API
+
+| Endpoint | Returns |
+|---|---|
+| `POST /matches/{id}/recap` body `{"audience": "analyst", "length": "medium", "language": "en", "refresh": false}` | recap, validation report, model name, generation time, `cached` |
+| `GET /matches/{id}/moments/{moment_id}/explain?audience=&language=` | `why_it_mattered`, `context`, `cites`, validation report |
+
+`audience` is `analyst`, `broadcaster` or `fan`; `length` is `short` or `medium`; `language` is `en` for now (the
+parameter exists everywhere so Hindi and Tamil can be added in Phase 3 with a `prompts/language_<code>.md` file).
+A server that is not running gives HTTP 503 with a hint; `/docs` has the schemas.
+
+### How validation works
+
+Each paragraph (and for explanations each text field) must pass all of these:
+
+1. **Citations.** At least one moment id; every id must exist and must have been part of the data given to the model.
+   The JSON schema sent to Ollama lists the valid ids as an enum, and the backend checks again.
+2. **Numbers.** Every number in the text must appear in the match summary or in the cited moments, as shown to the model.
+   Scores (`2-2`, either order), stoppage minutes (`90+3'`), decimals (xG), integers and counted number words ("two goals",
+   "twice") are separate kinds. A minute from an uncited moment fails.
+3. **Names.** A mention of a player who is not named in the cited moments fails (full name, display name, surname or given
+   name, ignoring accents and case). Capitalised words that are not teams, roster players or common sentence openers
+   (`NAME_CHECK_SENTENCE_STARTERS` in `config.py`) are treated as invented names. The title may not name players at all.
+
+4. **Score-state verbs.** "took the lead", "went ahead", "equalised", "levelled", "won" and "drew" are checked against the
+   score before and after the cited goal moments (and the goals behind a cited quick-response moment). A named minute narrows
+   the check to the goal at that minute; a named team must be the side that scored. "Won" and "drew" are checked against the
+   final score, the score after 90 minutes and the shootout winner.
+5. **Shootout claims.** The model sees the kicks as a numbered list (kick, team, taker, result). A sentence in a paragraph that
+   cites the shootout is checked for ordinals ("first penalty", "opening kick", "France's third penalty") and for a named
+   taker scoring, missing or being saved. Rules are in `matchlens/recap/rules.py`.
+6. **Banned phrases.** `BANNED_PHRASES` in `config.py` (title, trophy, champions, history, hosts, favourites, stadium, crowd,
+   record, ...) fails for every audience. The competition and stage text from the data is exempt.
+7. **Opinion words.** `OPINION_WORDS` in `config.py` (dramatic, well-taken, stunning, ...) fails for the analyst and the
+   broadcaster and is allowed for the fan (`OPINION_ALLOWED_AUDIENCES`).
+
+If anything fails, the model is called once more with the exact errors listed. The attempt with more valid paragraphs
+wins; invalid paragraphs are dropped; if none survives, the deterministic template recap is used
+(`matchlens/recap/fallback.py`, also the baseline to compare the model against). A model server that is not running is
+reported as an error, never papered over with the template. The `report` in every response says what was retried,
+dropped or replaced. Only model-written results are cached, in `data/generated/` (gitignored), keyed by match, audience,
+length, language, model and a hash of the files in `prompts/`; editing a prompt invalidates the cache.
+
+What validation cannot see: claims that use no numbers or names (who dominated, why something happened), correct numbers
+attached to the wrong thing (a real minute given to the wrong goal when both moments are cited), outside knowledge
+phrased without names or numbers, tone beyond the opinion-word list, wrong claims that avoid every listed verb or name, and misspelt names that are not close to
+any roster name. Prompts forbid all of these, but nothing enforces it.
+
+### Tests
+
+`python -m pytest` runs everything offline. The Ollama client is tested with a mock HTTP transport, the pipeline with a
+`FakeProvider`. `tests/test_ollama_integration.py` is marked `needs_ollama` and is skipped unless a server with the
+configured model is reachable.
 
 ## Attribution
 

@@ -1,11 +1,14 @@
 """FastAPI app. Run with: uvicorn matchlens.api:app --reload"""
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import loader, service
+from .llm import LLMError, LLMProvider, LLMUnavailable, get_provider
 from .models import Event, MatchSummary, Moment
+from .recap import pipeline
+from .recap.models import Audience, ExplainResult, Language, RecapRequest, RecapResult
 
 
 @asynccontextmanager
@@ -22,7 +25,7 @@ app = FastAPI(title="MatchLens", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -80,3 +83,43 @@ def match_events(
         and (to_minute is None or e.minute <= to_minute)
         and (period is None or e.period == period)
     ]
+
+
+# ---- Phase 2: grounded recaps and explanations ---------------------------------------------------------
+def provider_dep() -> LLMProvider:
+    """The configured LLM provider. Tests override this dependency with a FakeProvider."""
+    return get_provider()
+
+
+def _llm_errors(exc: LLMError) -> HTTPException:
+    if isinstance(exc, LLMUnavailable):
+        return HTTPException(status_code=503, detail=str(exc))
+    return HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/matches/{match_id}/recap", response_model=RecapResult)
+def make_recap(match_id: int, req: RecapRequest | None = None, provider: LLMProvider = Depends(provider_dep)) -> RecapResult:
+    """Recap built only from the match summary and moments; the response includes the validation report."""
+    match = _match(match_id)
+    try:
+        return pipeline.get_recap(match, req or RecapRequest(), provider)
+    except LLMError as exc:
+        raise _llm_errors(exc) from exc
+
+
+@app.get("/matches/{match_id}/moments/{moment_id}/explain", response_model=ExplainResult)
+def explain_moment(
+    match_id: int,
+    moment_id: str,
+    audience: Audience = "analyst",
+    language: Language = "en",
+    refresh: bool = False,
+    provider: LLMProvider = Depends(provider_dep),
+) -> ExplainResult:
+    match = _match(match_id)
+    if moment_id not in {m.id for m in match.moments}:
+        raise HTTPException(status_code=404, detail=f"match {match_id} has no moment {moment_id}")
+    try:
+        return pipeline.get_explanation(match, moment_id, audience, language, provider, refresh)
+    except LLMError as exc:
+        raise _llm_errors(exc) from exc
