@@ -78,4 +78,4 @@ matches has a straight red. The QF has a `Second Yellow` (Dumfries) in **period 
 ## Other
 * `Player Off` / `Player On` are bookkeeping events, ignored.
 * `Starting XI` events carry `tactics.lineup`.
-* Possession share is computed in code from event `duration` of `possession_team` events (see summary code), as no field provides it.
+* No possession-share field exists. It is derived in `summary.py` from the `possession` sequence numbers (time from the first event of one possession to the first event of the next, same period, credited to `possession_team`).

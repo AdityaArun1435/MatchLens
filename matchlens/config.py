@@ -6,9 +6,8 @@ RAW_DIR = ROOT / "data" / "raw"
 
 OPEN_DATA_BASE = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
 
-# Resolved and verified from competitions.json / matches.json by fetch_data.py.
+# Queries are resolved against matches.json by scripts/fetch_data.py (never hard-coded ids).
 # FIFA World Cup: competition 43; 2022 season 106; 2018 season 3.
-PRELOADED_MATCHES: dict[int, str] = {}  # filled from data/raw/index.json at runtime
 DEFAULT_MATCH_QUERY = {
     "competition_id": 43,
     "season_id": 106,
@@ -23,7 +22,7 @@ EXTRA_MATCH_QUERIES = [
 
 # Match clock: seconds added to a period's own timestamp to get match time.
 # Regular time and extra time offsets (period -> start in seconds).
-PERIOD_OFFSET_SECONDS = {1: 0, 2: 45 * 60, 3: 90 * 60, 4: 105 * 60}
+PERIOD_OFFSET_SECONDS = {1: 0, 2: 45 * 60, 3: 90 * 60, 4: 105 * 60, 5: 120 * 60}
 PERIOD_END_MINUTE = {1: 45, 2: 90, 3: 105, 4: 120}
 SHOOTOUT_PERIOD = 5
 IN_PLAY_PERIODS = (1, 2, 3, 4)
