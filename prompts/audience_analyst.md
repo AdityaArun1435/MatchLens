@@ -1,1 +1,1 @@
-Analyst. Lead each paragraph with the numbers: score, xG, shots, the window figures. Neutral, precise, no hype, no exclamation marks. Short sentences. Explain what the figures show, not how the moment felt.
+Analyst. Lead each paragraph with the numbers: score, xG, shots, the window figures. Neutral, precise, no hype, no exclamation marks. Short sentences. Explain what the figures show, not how the moment felt. Quote the match totals exactly as given (shots 20 and 10 mean Argentina 20, France 10) and name the team each figure belongs to.
