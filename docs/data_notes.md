@@ -79,5 +79,5 @@ matches has a straight red. The QF has a `Second Yellow` (Dumfries) in **period 
 * `Player Off` / `Player On` are bookkeeping events, ignored.
 * `Starting XI` events carry `tactics.lineup`.
 * Lineups: `player_nickname` is the short name (null for some players). Mostly usable ("Lionel Messi"), but not always:
-  Kolo Muani is "Randal Kolo" and Mac Allister is "Alexis MacAllister". `config.DISPLAY_NAME_OVERRIDES` corrects these.
+  Kolo Muani is "Randal Kolo" and Mac Allister is "Alexis MacAllister". `config.DISPLAY_NAME_OVERRIDES` corrects both.
 * No possession-share field exists. It is derived in `summary.py` from the `possession` sequence numbers (time from the first event of one possession to the first event of the next, same period, credited to `possession_team`).

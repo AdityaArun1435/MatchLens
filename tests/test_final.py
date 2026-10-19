@@ -62,7 +62,7 @@ def test_goal_score_progression(final):
 
 def test_second_goal_buildup_found(final):
     g = [m for m in final.moments if m.type == "goal"][1]  # Di Maria 36'
-    assert g.stats["buildup_passes"] >= 4 and g.stats["assist"] == "Alexis MacAllister"
+    assert g.stats["buildup_passes"] >= 4 and g.stats["assist"] == "Alexis Mac Allister"
 
 
 def test_timeline_matches_totals(final):

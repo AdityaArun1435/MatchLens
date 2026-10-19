@@ -47,4 +47,5 @@ QUICK_RESPONSE_REPLY_MIN = 3  # equaliser or lead change within this many minute
 # Keys are StatsBomb player ids (int) or full names (str).
 DISPLAY_NAME_OVERRIDES: dict[int | str, str] = {
     22097: "Randal Kolo Muani",  # StatsBomb nickname is "Randal Kolo"
+    27886: "Alexis Mac Allister",  # StatsBomb nickname is "Alexis MacAllister"
 }

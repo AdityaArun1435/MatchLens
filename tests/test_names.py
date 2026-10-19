@@ -56,3 +56,8 @@ def test_headlines_and_stats_use_display_name_but_moment_keeps_full_name_and_id(
     assert m.stats["scorer"] == "Lionel Messi"
     assert m.players == ["Lionel Andrés Messi Cuccittini"] and m.player_ids == [1]
     assert m.player_display_names == ["Lionel Messi"]
+
+
+def test_shipped_overrides_fix_known_nickname_problems():
+    assert resolve_display_name(27886, "Alexis Mac Allister", "Alexis MacAllister") == "Alexis Mac Allister"
+    assert resolve_display_name(22097, "Randal Kolo Muani", "Randal Kolo") == "Randal Kolo Muani"
