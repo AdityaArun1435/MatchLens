@@ -75,3 +75,8 @@ def test_timeline_matches_totals(final):
 def test_period_stoppage_labels(final):
     labels = {e.clock_label for e in final.events if e.period == 2}
     assert "90+8'" in labels  # second half ran to 98:37
+
+
+def test_extra_time_goal_records_the_saved_shot_before_it(final):
+    g = [m for m in final.moments if m.type == "goal"][4]  # Messi 108'
+    assert [(x["player"], x["outcome"]) for x in g.stats["preceding_shots"]] == [("Lautaro Javier Martínez", "Saved")]

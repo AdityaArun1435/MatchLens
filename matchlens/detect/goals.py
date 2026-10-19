@@ -25,6 +25,19 @@ def _buildup(ctx: MatchContext, anchor: Event, team: str) -> list[Event]:
     return passes[-config.BUILDUP_MAX_PASSES :]
 
 
+def _preceding_shots(ctx: MatchContext, anchor: Event, team: str) -> list[Event]:
+    """Earlier in-play shots by the scoring team in the same possession (the goal was a follow-up)."""
+    return [
+        e
+        for e in ctx.events
+        if e.index < anchor.index
+        and e.type == "Shot"
+        and e.possession == anchor.possession
+        and e.period == anchor.period
+        and e.team == team
+    ]
+
+
 def _result_change(goal: Goal, ctx: MatchContext) -> str:
     i = ctx.home_away(goal.team)
     before = goal.score_before[i] - goal.score_before[1 - i]
@@ -38,6 +51,7 @@ def detect_goals(ctx: MatchContext) -> list[Moment]:
     for g in ctx.goals:
         e = g.event
         passes = _buildup(ctx, e, g.team)
+        prior = _preceding_shots(ctx, e, g.team)
         change = _result_change(g, ctx)
         assist = None
         if e.type == "Shot" and e.detail.get("key_pass_id") in ctx.by_id:
@@ -75,13 +89,16 @@ def detect_goals(ctx: MatchContext) -> list[Moment]:
                     "xg": e.xg,
                     "result_change": change,
                     "body_part": e.detail.get("body_part"),
+                    "preceding_shots": [
+                        {"player": p.player, "outcome": p.outcome, "xg": p.xg, "clock": p.clock_label} for p in prior
+                    ],
                     "buildup_passes": len(passes),
                     "buildup_seconds": buildup_seconds,
                     "buildup": [
                         {"player": p.player, "to": p.detail.get("recipient"), "clock": p.clock_label} for p in passes
                     ],
                 },
-                evidence=[*[p.id for p in passes], *g.evidence],
+                evidence=[*[x.id for x in sorted([*passes, *prior], key=lambda x: x.index)], *g.evidence],
                 first_index=e.index,
             )
         )

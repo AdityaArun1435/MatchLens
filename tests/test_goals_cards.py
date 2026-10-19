@@ -67,3 +67,11 @@ def test_big_chance_threshold_configurable():
     c = ctx([shot(1, 1, 100, HOME, 0.2), shot(2, 1, 200, HOME, 0.35)])
     assert len(detect_big_chances(c)) == 1
     assert len(detect_big_chances(c, threshold=0.1)) == 2
+
+
+def test_rebound_goal_lists_preceding_shot():
+    first = shot(1, 1, 100, HOME, 0.2, outcome="Saved").model_copy(update={"possession": 4})
+    goal = shot(2, 1, 101, HOME, 0.4, outcome="Goal", player="Scorer").model_copy(update={"possession": 4})
+    (m,) = detect_goals(ctx([first, goal]))
+    assert m.stats["preceding_shots"] == [{"player": "P", "outcome": "Saved", "xg": 0.2, "clock": "2'"}]
+    assert m.evidence == ["e1", "e2"]
