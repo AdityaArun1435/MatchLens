@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# StatsBomb data may not be redistributed (see README). Fetch it locally.
+data/raw/*
+!data/raw/.gitkeep
