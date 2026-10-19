@@ -1,7 +1,7 @@
 """Big chances missed: in-play shots at or above the xG threshold that did not score."""
 from .. import config, importance
 from ..models import Moment
-from .common import MatchContext, people_fields, person_of
+from .common import MatchContext, outcome_text, people_fields, person_of
 
 
 def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> list[Moment]:
@@ -30,7 +30,7 @@ def detect_big_chances(ctx: MatchContext, threshold: float | None = None) -> lis
                 score_after=before,
                 importance=importance.big_chance(xg=e.xg or 0.0, score_diff_abs=abs(before[0] - before[1])),
                 headline=(
-                    f"{e.team}: {e.player_display_name or e.player} shot, outcome {e.outcome}, xG {e.xg:.2f}, {e.clock_label}. "
+                    f"{e.team}: {e.player_display_name or e.player} shot, outcome {outcome_text(e.outcome)}, xG {e.xg:.2f}, {e.clock_label}. "
                     f"Score {ctx.meta.home_team} {before[0]}-{before[1]} {ctx.meta.away_team}."
                 ),
                 stats={

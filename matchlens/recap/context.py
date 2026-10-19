@@ -5,6 +5,7 @@ is allowed to say can never drift from what it was shown.
 """
 from dataclasses import dataclass, field
 
+from ..detect.common import outcome_text
 from ..models import MatchSummary, Moment
 from ..service import ProcessedMatch
 
@@ -29,13 +30,6 @@ class Context:
     moment_names: dict[str, set[str]]  # id -> player names visible in that block
     shown_ids: list[str]
     moments: dict[str, Moment] = field(default_factory=dict)
-
-
-_OUTCOME = {"Off T": "off target", "Saved to Post": "saved onto the post", "Wayward": "well off target"}
-
-
-def _outcome(raw: str) -> str:
-    return _OUTCOME.get(raw, raw.lower())
 
 
 def _importance_word(x: float) -> str:
@@ -96,12 +90,12 @@ def _facts(m: Moment, home: str, away: str) -> tuple[list[str], set[str]]:
             out.append(f"xG of the shot: {s['xg']:.2f}")
         out.append(f"effect: {_RESULT.get(s['result_change'], s['result_change'])}")
         for p in s.get("preceding_shots", []):
-            out.append(f"earlier shot in the same move: {add_name(p['player'])}, {_outcome(p['outcome'])}, xG {p['xg']:.2f}")
+            out.append(f"earlier shot in the same move: {add_name(p['player'])}, {outcome_text(p['outcome'])}, xG {p['xg']:.2f}")
         chain = [b["player"] for b in s.get("buildup", [])][-6:]
         if chain:
             out.append(f"build-up passes ({s['buildup_passes']}), last passers in order: " + " > ".join(map(add_name, chain)))
     elif m.type == "big_chance_missed":
-        out.append(f"shot by {add_name(m.player_display_names[0])}: {_outcome(s['outcome'])}, xG {s['xg']:.2f}, {s['shot_type'].lower()}")
+        out.append(f"shot by {add_name(m.player_display_names[0])}: {outcome_text(s['outcome'])}, xG {s['xg']:.2f}, {s['shot_type'].lower()}")
         if s.get("assist"):
             out.append(f"assist: {add_name(s['assist'])}")
     elif m.type in ("red_card", "second_yellow"):
@@ -129,7 +123,7 @@ def _facts(m: Moment, home: str, away: str) -> tuple[list[str], set[str]]:
         sc = s["shootout_score"]
         out.append(f"result: {home} {sc[home]}-{sc[away]} {away}, winner {s['winner']}")
         kicks = [
-            f"{k['order']}. {k['team']} {add_name(k['player'])} {'scored' if k['scored'] else _outcome(k['outcome'])}"
+            f"{k['order']}. {k['team']} {add_name(k['player'])} {'scored' if k['scored'] else outcome_text(k['outcome'])}"
             for k in s["kicks"]
         ]
         out.append("kicks in order: " + "; ".join(kicks))

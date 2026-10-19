@@ -45,7 +45,7 @@ _TOKEN = re.compile(
 
 
 def numbers_in(text: str) -> set[tuple]:
-    """Canonical number tokens: ('m',90,3) stoppage minute, ('s',2,2) score, ('d',Decimal) decimal, ('i',n) integer."""
+    """Canonical number tokens: ('m',90,3) stoppage minute, ('s',2,1) score (larger side first), ('d',Decimal), ('i',n)."""
     text = _ID.sub(" ", text)
     text = _HALF.sub(" ", text)
     found: set[tuple] = set()
@@ -55,7 +55,7 @@ def numbers_in(text: str) -> set[tuple]:
             found.add(("m", int(a), int(b)))
         elif m.group("score"):
             a, b = re.split(r"\s?[-–—:]\s?", m.group("score"))
-            found.add(("s", int(a), int(b)))
+            found.add(("s", max(int(a), int(b)), min(int(a), int(b))))  # "1-0" and "0-1" are the same claim here
         elif m.group("dec"):
             found.add(("d", Decimal(m.group("dec")).normalize()))
         else:
