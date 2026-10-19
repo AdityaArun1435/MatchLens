@@ -1,6 +1,8 @@
-# MatchLens (Phase 1: data layer)
+# MatchLens
 
-Local-only football match intelligence. Phase 1 loads StatsBomb open data, normalises the events, detects
+Local-only football match intelligence.
+
+* **Phase 1** (data layer): loads StatsBomb open data, normalises the events, detects
 the key moments of a match with plain Python, and serves everything through a small FastAPI app. No LLM,
 no ML, no paid APIs, no keys.
 
