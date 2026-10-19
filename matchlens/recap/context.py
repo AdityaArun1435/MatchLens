@@ -59,7 +59,9 @@ def summary_block(summary: MatchSummary) -> str:
         f"teams: {home} (home), {away} (away)",
         f"final score after extra time, shootout not included: {_score(m, summary.final_score)}",
         f"score after 90 minutes: {_score(m, summary.score_after_90)}",
-        f"extra time played: {'yes' if summary.went_to_extra_time else 'no'}",
+        "extra time played: yes, 30 minutes, so 120 minutes of play in total"
+        if summary.went_to_extra_time
+        else "extra time played: no, 90 minutes of play in total",
     ]
     if summary.shootout:
         sc = summary.shootout["score"]
