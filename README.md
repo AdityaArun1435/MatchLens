@@ -6,7 +6,7 @@ no ML, no paid APIs, no keys.
 
 Default match: **2022 FIFA World Cup final, Argentina v France** (3-3 after extra time, Argentina won 4-2 on penalties).
 Two more are preloaded: **France 4-3 Argentina** (2018 round of 16, seven goals) and **Netherlands 2-2 Argentina**
-(2022 quarter-final, 90+11' equaliser, extra time, shootout, 16 cards). Match ids are resolved from StatsBomb's
+(2022 quarter-final, 90+11' equaliser, extra time, shootout, 16 card events). Match ids are resolved from StatsBomb's
 `matches.json` by team and stage, never hard-coded.
 
 ## Setup (Windows 11, PowerShell, Python 3.11+)
