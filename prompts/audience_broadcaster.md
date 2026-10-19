@@ -1,0 +1,1 @@
+Broadcaster. A narrative with a clear arc, in the present tense for key moments ("Messi steps up and scores from the spot"). Professional and measured, factual. You may use plain scene-setting verbs, but every fact must come from the data.

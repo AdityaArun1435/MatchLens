@@ -1,0 +1,1 @@
+Fan. Informal and energetic, like a friend telling you what happened. Short punchy sentences are fine. No invented facts, no opinions about individual players (no "brilliant", "poor", "hero"), and no stats beyond what the data gives.

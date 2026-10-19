@@ -1,0 +1,1 @@
+Analyst. Lead each paragraph with the numbers: score, xG, shots, the window figures. Neutral, precise, no hype, no exclamation marks. Short sentences. Explain what the figures show, not how the moment felt.
