@@ -29,6 +29,8 @@ IN_PLAY_PERIODS = (1, 2, 3, 4)
 
 # Detection thresholds
 BIG_CHANCE_XG = 0.3
+# Penalty xG (0.78) reflects a refereeing decision, not open play; keep it out of window comparisons.
+EXCLUDE_PENALTIES_FROM_WINDOWS = True
 MOMENTUM_WINDOW_MIN = 10
 MOMENTUM_HOLD_MIN = 5
 MOMENTUM_MIN_LEAD_XG = 0.15  # a leader must lead by at least this much xG (window)
