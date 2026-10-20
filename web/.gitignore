@@ -43,3 +43,8 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# python bundle copied at build time (scripts/sync-python.mjs)
+/_py/
+.env*.local
+.vercel

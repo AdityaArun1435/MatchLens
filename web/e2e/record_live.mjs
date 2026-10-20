@@ -14,7 +14,7 @@ mkdirSync(frames, { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1000, height: 1420 } });
-await page.goto(`${BASE}/match/3869685`);
+await page.goto(`${BASE}/classic/match/3869685`);
 await page.getByTestId("watch-live").click();
 await page.getByTestId("live-mode").waitFor();
 await page.getByTestId("live-pause").click();

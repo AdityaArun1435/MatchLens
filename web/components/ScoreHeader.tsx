@@ -34,7 +34,7 @@ export function ScoreHeader({ summary, actions, spoilerFree = false }: { summary
   return (
     <header className="card relative overflow-hidden p-5 sm:p-7" data-testid="score-header">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
+        <Link href="/classic" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
           <ChevronLeft className="h-3.5 w-3.5" aria-hidden /> All matches
         </Link>
         {actions}

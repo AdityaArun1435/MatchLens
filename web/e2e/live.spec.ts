@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("live replay of the final at 60x: the clock advances and the first goal appears with a caption", async ({ page }) => {
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("watch-live").click();
   await expect(page.getByTestId("live-mode")).toBeVisible();
   await expect(page.getByTestId("live-status")).toContainText("Replay");
@@ -23,7 +23,7 @@ test("live replay of the final at 60x: the clock advances and the first goal app
 });
 
 test("pause holds the clock and resume continues it", async ({ page }) => {
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("watch-live").click();
   await page.getByTestId("live-speed").getByRole("button", { name: "60x" }).click();
   await expect.poll(async () => page.getByTestId("live-clock").innerText()).not.toBe("1'");
@@ -37,7 +37,7 @@ test("pause holds the clock and resume continues it", async ({ page }) => {
 });
 
 test("at full time 'Read the recap' opens the cached recap", async ({ page }) => {
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("audience-toggle").getByRole("button", { name: "Broadcaster" }).click(); // a combination no other test caches
   await page.getByTestId("recap-generate").click(); // cache one recap first (fake model)
   await expect(page.getByTestId("recap-result")).toBeVisible();
@@ -54,7 +54,7 @@ test("at full time 'Read the recap' opens the cached recap", async ({ page }) =>
 
 test("live replay without the backend shows a clear message", async ({ page }) => {
   await page.routeWebSocket(/\/live/, (ws) => ws.close());
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("watch-live").click();
   await expect(page.getByTestId("live-error")).toContainText("not connected");
 });

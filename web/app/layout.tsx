@@ -10,7 +10,7 @@ const tamil = Noto_Sans_Tamil({ variable: "--font-tamil", subsets: ["tamil"] });
 
 export const metadata: Metadata = {
   title: "MatchLens",
-  description: "Football recaps written by a local model and checked line by line against the match data.",
+  description: "Live football scores, fixtures, tables, lineups and match events, plus classic matches explained from the data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

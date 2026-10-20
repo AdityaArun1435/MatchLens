@@ -13,3 +13,19 @@ data/generated/*
 # local server logs
 start_*.log
 warm_cache*.log
+
+# scratch output
+recaps*.md
+*.log
+web/test-results/
+web/playwright-report/
+
+# secrets
+.env
+.env.local
+.env.*.local
+
+.vercel
+
+.vercel
+.env*

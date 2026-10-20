@@ -9,7 +9,7 @@ from matchlens.detect import detect_moments
 from matchlens.detect.common import MatchContext, in_period_seconds
 from matchlens.detect.substitutions import GROUP_GAP_SECONDS
 from matchlens.incremental import IncrementalDetector, canonical_ids
-from matchlens.live import ReplayEngine, Timeline
+from matchlens.replay import ReplayEngine, Timeline
 
 from .recap_fixtures import small_match
 

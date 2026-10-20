@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "functions": {
+    "api/refresh.py": { "maxDuration": 60, "includeFiles": "_py/**" }
+  }
+}
