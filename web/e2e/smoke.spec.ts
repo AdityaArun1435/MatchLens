@@ -5,7 +5,7 @@ test("final: open a moment, explain it, generate an English analyst recap and re
   await page.goto("/classic");
   await expect(page.getByTestId("match-list").locator("a")).toHaveCount(3);
   await page.getByTestId("match-card-3869685").click();
-  await expect(page).toHaveURL(/\/match\/3869685$/);
+  await expect(page).toHaveURL(/\/classic\/match\/3869685$/);
 
   // Header and chart
   await expect(page.getByTestId("final-score")).toHaveText("3-3");
