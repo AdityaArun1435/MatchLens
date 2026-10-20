@@ -9,3 +9,6 @@ data/raw/*
 # model output, can be large and is regenerated on demand
 data/generated/*
 !data/generated/.gitkeep
+
+# local server logs
+start_*.log
