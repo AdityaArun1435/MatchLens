@@ -35,6 +35,7 @@ export function XgChart({
   goals,
   highlightId,
   onSelect,
+  upTo,
 }: {
   timeline: TimelinePoint[];
   home: string;
@@ -42,17 +43,20 @@ export function XgChart({
   goals: Moment[];
   highlightId: string | null;
   onSelect: (id: string) => void;
+  /** Live replay: draw the lines only as far as this timeline index; the axes keep the full-match scale. */
+  upTo?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const narrow = useNarrow();
   const { W, H } = narrow ? NARROW : WIDE;
   const n = timeline.length;
+  const shown = upTo === undefined ? n : Math.max(1, Math.min(n, upTo + 1));
   const geometry = useMemo(() => {
     const maxV = niceMax(Math.max(0.5, ...timeline.flatMap((p) => [p.cumulative_xg[home] ?? 0, p.cumulative_xg[away] ?? 0])) * 1.05);
     const x = (i: number) => PAD.l + (n > 1 ? (i / (n - 1)) * (W - PAD.l - PAD.r) : 0);
     const y = (v: number) => PAD.t + (1 - v / maxV) * (H - PAD.t - PAD.b);
-    const line = (team: string) => timeline.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.cumulative_xg[team] ?? 0).toFixed(1)}`).join(" ");
-    const area = (team: string) => `${line(team)} L${x(n - 1).toFixed(1)},${y(0)} L${x(0).toFixed(1)},${y(0)} Z`;
+    const line = (team: string) => timeline.slice(0, shown).map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.cumulative_xg[team] ?? 0).toFixed(1)}`).join(" ");
+    const area = (team: string) => `${line(team)} L${x(shown - 1).toFixed(1)},${y(0)} L${x(0).toFixed(1)},${y(0)} Z`;
     const ticks: { i: number; label: string }[] = [];
     for (const m of narrow ? [0, 30, 60, 90, 120] : [0, 15, 30, 45, 60, 75, 90, 105, 120]) {
       const i = timeline.findIndex((p) => p.minute === m);
@@ -64,18 +68,18 @@ export function XgChart({
     });
     const yTicks = Array.from({ length: 5 }, (_, k) => (maxV / 4) * k);
     return { maxV, x, y, line, area, ticks, dividers, yTicks };
-  }, [timeline, home, away, n, W, H, narrow]);
+  }, [timeline, home, away, n, shown, W, H, narrow]);
 
   const markers = goals
     .map((g) => {
       const i = timeline.findIndex((p) => p.period === g.period && p.minute === g.minute);
       const team = g.score_after[0] > g.score_before[0] ? home : away;
-      return i < 0 ? null : { g, i, team };
+      return i < 0 || i >= shown ? null : { g, i, team };
     })
     .filter((m): m is { g: Moment; i: number; team: string } => m !== null);
 
   const { x, y } = geometry;
-  const at = hover === null ? null : timeline[hover];
+  const at = hover === null || hover >= shown ? null : timeline[hover];
 
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -87,8 +91,8 @@ export function XgChart({
   return (
     <div className="relative" data-testid="xg-chart">
       <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-home" />{home} <b className="display text-lg">{(timeline[n - 1]?.cumulative_xg[home] ?? 0).toFixed(2)}</b></span>
-        <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-away" />{away} <b className="display text-lg">{(timeline[n - 1]?.cumulative_xg[away] ?? 0).toFixed(2)}</b></span>
+        <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-home" />{home} <b className="display text-lg">{(timeline[shown - 1]?.cumulative_xg[home] ?? 0).toFixed(2)}</b></span>
+        <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-away" />{away} <b className="display text-lg">{(timeline[shown - 1]?.cumulative_xg[away] ?? 0).toFixed(2)}</b></span>
         <span className="ml-auto text-xs text-muted">cumulative xG, dots are goals</span>
       </div>
       <div className="overflow-x-auto" data-testid="xg-scroll">

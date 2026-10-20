@@ -20,7 +20,7 @@ function Stat({ label, home, away, h, a }: { label: string; home: string; away: 
   );
 }
 
-export function ScoreHeader({ summary }: { summary: MatchSummary }) {
+export function ScoreHeader({ summary, actions, spoilerFree = false }: { summary: MatchSummary; actions?: React.ReactNode; spoilerFree?: boolean }) {
   const { meta } = summary;
   const [h, a] = summary.final_score;
   const home = meta.home_team;
@@ -33,13 +33,18 @@ export function ScoreHeader({ summary }: { summary: MatchSummary }) {
 
   return (
     <header className="card relative overflow-hidden p-5 sm:p-7" data-testid="score-header">
-      <Link href="/" className="mb-4 inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden /> All matches
-      </Link>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
+          <ChevronLeft className="h-3.5 w-3.5" aria-hidden /> All matches
+        </Link>
+        {actions}
+      </div>
       <p className="text-xs uppercase tracking-[0.18em] text-muted">
         {meta.competition} {meta.season} · {meta.stage} · {date}
         {meta.stadium ? ` · ${meta.stadium}` : ""}
       </p>
+      {spoilerFree ? null : (
+      <>
       <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6">
         <h1 className="display text-right text-2xl font-bold leading-tight text-home sm:text-5xl" data-testid="home-team">{home}</h1>
         <div className="display rounded-xl border border-line bg-bg/80 px-4 py-1.5 text-4xl font-bold tabular-nums sm:px-7 sm:text-6xl" data-testid="final-score" aria-label={`Final score ${h} ${a}`}>
@@ -56,6 +61,8 @@ export function ScoreHeader({ summary }: { summary: MatchSummary }) {
         <Stat label="On target" home={String(summary.shots_on_target[home])} away={String(summary.shots_on_target[away])} h={summary.shots_on_target[home]} a={summary.shots_on_target[away]} />
         <Stat label="Possession" home={pct(summary.possession_share[home])} away={pct(summary.possession_share[away])} h={summary.possession_share[home]} a={summary.possession_share[away]} />
       </div>
+      </>
+      )}
     </header>
   );
 }

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getHealth, getMoments, getSummary } from "@/lib/api";
 import type { Health, MatchSummary, Moment } from "@/lib/types";
+import { Radio } from "lucide-react";
 import { ErrorNotice, StatusPill } from "./Bits";
+import { LiveMode } from "./LiveMode";
 import { MomentPanel } from "./MomentPanel";
 import { MomentsTimeline } from "./MomentsTimeline";
 import { RecapPanel, type Settings } from "./RecapPanel";
@@ -18,6 +20,7 @@ export function MatchView({ matchId }: { matchId: number }) {
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
   const [minImportance, setMinImportance] = useState(0);
+  const [live, setLive] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>({ audience: "analyst", language: "en", length: "medium" });
@@ -85,7 +88,36 @@ export function MatchView({ matchId }: { matchId: number }) {
       <div className="flex justify-end">
         <StatusPill health={health} error={healthError} />
       </div>
-      <ScoreHeader summary={summary} />
+      <ScoreHeader
+        summary={summary}
+        spoilerFree={live}
+        actions={
+          !live && (
+            <button
+              type="button"
+              data-testid="watch-live"
+              onClick={() => setLive(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-accent/50 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/10"
+            >
+              <Radio className="h-4 w-4" aria-hidden /> Watch live
+            </button>
+          )
+        }
+      />
+      {live ? (
+        <LiveMode
+          matchId={matchId}
+          summary={summary}
+          audience={settings.audience}
+          language={settings.language}
+          onClose={() => setLive(false)}
+          onReadRecap={() => {
+            setLive(false);
+            setTimeout(() => document.querySelector('[data-testid="recap-panel"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+          }}
+        />
+      ) : (
+      <>
       <section className="card p-5" aria-label="Expected goals timeline">
         <h2 className="display mb-3 text-xl font-semibold tracking-wide">xG timeline</h2>
         <XgChart timeline={summary.xg_timeline} home={home} away={away} goals={goals} highlightId={highlightId ?? selectedId} onSelect={focusMoment} />
@@ -121,6 +153,8 @@ export function MatchView({ matchId }: { matchId: number }) {
           </div>
         </div>
       </div>
+      </>
+      )}
     </main>
   );
 }

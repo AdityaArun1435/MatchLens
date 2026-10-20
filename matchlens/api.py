@@ -1,10 +1,13 @@
 """FastAPI app. Run with: uvicorn matchlens.api:app --reload"""
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+import asyncio
+
+from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config, loader, service
+from .live import LiveSession, ReplayEngine
 from .llm import LLMError, LLMProvider, LLMUnavailable, get_provider
 from .models import Event, MatchSummary, Moment
 from .recap import pipeline
@@ -155,3 +158,29 @@ def explain_moment(
         return pipeline.get_explanation(match, moment_id, audience, language, provider, refresh)
     except LLMError as exc:
         raise _llm_errors(exc) from exc
+
+
+# ---- Phase 5: live replay ------------------------------------------------------------------------------
+@app.websocket("/matches/{match_id}/live")
+async def live_replay(ws: WebSocket, match_id: int, speed: int = 10, start: float | None = None) -> None:
+    """Stream the match in order on a compressed clock. `speed` is 1, 10, 30 or 60; `start` an elapsed minute to begin at.
+
+    Server messages: hello, state, reset, catchup, tick, event, score, moment, end. Client commands (JSON):
+    {"cmd": "pause"}, {"cmd": "resume"}, {"cmd": "speed", "value": 30}, {"cmd": "seek", "minute": 60} or
+    {"cmd": "seek", "t": 1800} (replay seconds), {"cmd": "restart"}.
+    """
+    try:
+        match = service.get_match(match_id)
+    except (LookupError, FileNotFoundError):
+        await ws.close(code=4404)
+        return
+    await ws.accept()
+    session = LiveSession(ReplayEngine(match), speed, start)
+    runner = asyncio.create_task(session.run(ws))
+    try:
+        while True:
+            session.handle(await ws.receive_json())
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        runner.cancel()
