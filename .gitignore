@@ -12,4 +12,4 @@ data/generated/*
 
 # local server logs
 start_*.log
-warm_cache.log
+warm_cache*.log

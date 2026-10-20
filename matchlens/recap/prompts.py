@@ -16,16 +16,24 @@ def render(template: str, **values: str) -> str:
     return template
 
 
-@lru_cache(maxsize=1)
-def _hash_cached(_: tuple) -> str:
+# Prompt files only the recap uses: editing them must not invalidate cached explanations.
+_RECAP_ONLY = ("recap_task.md", "length_short.md", "length_medium.md")
+
+
+def _files(kind: str):
+    return [p for p in sorted(config.PROMPTS_DIR.glob("*.md")) if not (kind == "explain" and p.name in _RECAP_ONLY)]
+
+
+@lru_cache(maxsize=4)
+def _hash_cached(kind: str, _: tuple) -> str:
     digest = hashlib.sha256()
-    for path in sorted(config.PROMPTS_DIR.glob("*.md")):
+    for path in _files(kind):
         digest.update(path.name.encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()[:12]
 
 
-def prompt_hash() -> str:
-    """Hash of every prompt file; changing any prompt invalidates cached outputs."""
-    stamp = tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in sorted(config.PROMPTS_DIR.glob("*.md")))
-    return _hash_cached(stamp)
+def prompt_hash(kind: str = "recap") -> str:
+    """Hash of the prompt files a kind of output depends on; changing one of them invalidates those cached outputs."""
+    stamp = tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in _files(kind))
+    return _hash_cached(kind, stamp)
