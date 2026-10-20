@@ -1,338 +1,82 @@
 # MatchLens
 
+**A football match explained by a local LLM that is not allowed to make things up: every sentence cites a detected moment, and a validator rejects invented numbers, names and claims.**
+
+[![CI](https://github.com/AdityaArun1435/MatchLens/actions/workflows/ci.yml/badge.svg)](https://github.com/AdityaArun1435/MatchLens/actions/workflows/ci.yml)
+![license](https://img.shields.io/badge/code-MIT-green)
+![football](https://img.shields.io/badge/-football-1f6feb) ![llm](https://img.shields.io/badge/-llm-1f6feb) ![ollama](https://img.shields.io/badge/-ollama-1f6feb) ![fastapi](https://img.shields.io/badge/-fastapi-1f6feb) ![nextjs](https://img.shields.io/badge/-nextjs-1f6feb) ![explainable-ai](https://img.shields.io/badge/-explainable--ai-1f6feb)
+
 ![Live replay of the 2022 World Cup final through Mbappé's goals at 80' and 81'](docs/screenshots/live.gif)
 
-*Live replay (30x) of the 2022 final from the 79th minute: the clock, the xG chart drawing in, the captions, and moments appearing as they become detectable.*
+*Live replay (30x) of the 2022 final from the 79th minute: the xG chart drawing in, captions, and moments appearing as they become detectable.*
 
+| Match page (English) | Tamil recap | "How was this checked?" |
+|---|---|---|
+| ![Match page, English](docs/screenshots/match-en.png) | ![Tamil recap](docs/screenshots/match-ta.png) | ![The validation report](docs/screenshots/checked.png) |
 
-Local-only football match intelligence.
+## Why it's different
 
-* **Phase 1** (data layer): loads StatsBomb open data, normalises the events, detects
-the key moments of a match with plain Python, and serves everything through a small FastAPI app. No LLM in this phase, no ML.
-* **Phase 2** (section below): grounded recaps and moment explanations written by a local LLM through Ollama,
-  checked by the backend before anything is shown. No paid APIs, no keys in either phase.
+- **The LLM never sees raw data.** Plain Python detects the moments (goals, big chances, cards, momentum swings, substitution impact, quick responses, the shootout). The model gets only a short text rendering of those moments and the match summary.
+- **Every sentence cites a detected moment.** Click a citation in the recap and the app jumps to the evidence.
+- **A validator rejects what is not in the data.** Numbers, names, score-state verbs ("took the lead", "equalised"), shootout claims, banned phrases and opinion words are all checked. A failing paragraph is retried once with the exact errors, then dropped, and if nothing survives a deterministic template is used. The full report is one click away.
+- **Runs fully offline on a laptop GPU.** Ollama with `qwen3:8b` (about 5 GB). No API keys, no paid services, no data leaves the machine.
+- **Hindi and Tamil** are translated from the already-checked English and checked again (numbers, names, glossary), with a "Show English" toggle on every paragraph.
+- **Live replay** over a WebSocket: moments are detected incrementally using only events up to the clock, and tests prove none is released early.
 
-Default match: **2022 FIFA World Cup final, Argentina v France** (3-3 after extra time, Argentina won 4-2 on penalties).
-Two more are preloaded: **France 4-3 Argentina** (2018 round of 16, seven goals) and **Netherlands 2-2 Argentina**
-(2022 quarter-final, 90+11' equaliser, extra time, shootout, 16 card events). Match ids are resolved from StatsBomb's
-`matches.json` by team and stage, never hard-coded.
+## Architecture
 
-## Setup (Windows 11, PowerShell, Python 3.11+)
+```mermaid
+flowchart LR
+    SB[(StatsBomb open data)] --> N[Normalise events]
+    N --> D[Moment detector]
+    D --> M[Moments + match summary]
+    M --> P[Prompt builder]
+    P --> L[Local LLM via Ollama]
+    L --> V{Validator}
+    V -- pass --> T[Translation hi / ta, validated again]
+    V -- errors --> R[Retry once with the errors]
+    R --> V
+    V -- invalid paragraph --> X[Drop it]
+    V -- nothing valid --> F[Template fallback]
+    T --> C[(Cache)]
+    V -- English --> C
+    F --> A
+    C --> A[FastAPI]
+    M --> A
+    A --> W[Next.js web app]
+    M --> I[Incremental detector]
+    I --> S[Live WebSocket]
+    S --> W
+```
+
+## Quick start (Windows, PowerShell)
 
 ```powershell
-git clone <this repo>; cd MatchLens
-py -3.11 -m venv .venv            # or: python -m venv .venv
-.\.venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope Process Bypass
-pip install -r requirements.txt
-python scripts/fetch_data.py      # one-off download into data/raw/ (about 11 MB), then everything runs offline
+git clone https://github.com/AdityaArun1435/MatchLens; cd MatchLens
+py -3.11 -m venv .venv; .\.venv\Scripts\pip install -r requirements.txt
+.\.venv\Scripts\python scripts\fetch_data.py          # one-off StatsBomb download, about 11 MB
+winget install Ollama.Ollama; ollama pull qwen3:8b    # only needed for new recaps
+cd web; npm install; cd ..
+.\start.ps1                                           # API on :8000, web app on :3000
+.\start.ps1 -Fake                                     # no Ollama: canned recap for the 2022 final
 ```
 
-`data/raw/` is not in git. StatsBomb's data agreement (`LICENSE.pdf` in their repo, clause 1.2.1) forbids
-distributing or reproducing the data to third parties, so each user fetches it themselves. Tests that need the data
-are skipped (not failed) until you have run `fetch_data.py`.
+Tests, all offline: `.\.venv\Scripts\python -m pytest`. Full technical reference (moment definitions, validation rules, API, prompts): [docs/reference.md](docs/reference.md). Demo walkthrough: [docs/demo_script.md](docs/demo_script.md).
 
-Add any other match: `python scripts/fetch_data.py --add MATCH_ID:COMPETITION_ID:SEASON_ID`.
+## Limitations
 
-## Run
+- **Tamil is experimental** and Hindi is machine-translated. The name maps and football glossary are first drafts that nobody fluent has reviewed. A translation can keep every number and name and still shift the meaning.
+- **Validation cannot catch everything.** It checks numbers, names, listed verbs and listed phrases. It cannot see a claim that uses no number or name (who dominated, why something happened), a real number attached to the wrong goal when both are cited, or outside knowledge phrased in plain words. The prompts forbid these; nothing enforces it.
+- **An 8B model is an 8B model.** Prose is plain, sometimes repetitive, and a recap often needs its retry. Weak output is dropped or replaced by a template rather than improved.
+- **Three matches only** are preloaded (2022 final, 2018 France v Argentina, 2022 Netherlands v Argentina). More can be added by id, but only from StatsBomb's open data.
+- **The data cannot be redistributed.** StatsBomb's agreement forbids it, so `data/raw/` is not in this repository and each user fetches it with the script above. Tests that need it skip until you do.
 
-```powershell
-python scripts/inspect_match.py                      # moments table for the final
-python scripts/inspect_match.py --all --stats        # all preloaded matches, with each moment's numbers
-python scripts/inspect_match.py --match-id 7580 --min-importance 0.5
+## Tech stack
 
-uvicorn matchlens.api:app --reload                   # http://127.0.0.1:8000/docs
-python -m pytest                                     # all offline
-```
+Python 3.11, FastAPI, Pydantic, WebSockets, Ollama (`qwen3:8b`), Next.js 16 with React 19 and Tailwind, Playwright, pytest. **360 tests** (offline; the Ollama integration tests skip when no server is running). CI runs pytest and the frontend lint and build on every push, with no Ollama.
 
-### API
+## Attribution and licence
 
-| Endpoint | Returns |
-|---|---|
-| `GET /matches` | preloaded matches: metadata, extra time flag, shootout winner, moment count |
-| `GET /matches/{id}/summary` | `MatchSummary`: scores (90 min, extra time, final), shootout, xG, shots, possession, per-minute xG timeline |
-| `GET /matches/{id}/moments?min_importance=` | moments in match order |
-| `GET /matches/{id}/events?from_minute=&to_minute=&period=` | normalised events in match order (for live replay) |
+Data: **StatsBomb Open Data**, https://github.com/statsbomb/open-data, used under the StatsBomb Public Data User Agreement. If you publish analysis built on it, credit StatsBomb and use their logo ([media pack](https://statsbomb.com/media-pack/)). This project is not affiliated with or endorsed by StatsBomb.
 
-Each match is loaded and processed once and kept in memory. `minute` is the StatsBomb elapsed minute and repeats
-across a period boundary (stoppage time of the first half overlaps the start of the second), so pass `period`
-when you need to be exact. Order by `index`, not by minute.
-
-## Layout
-
-```
-matchlens/config.py        every threshold and default
-matchlens/loader.py        download + cache of raw JSON in data/raw
-matchlens/normalise.py     raw event -> Event (clock labels, shootout handling)
-matchlens/importance.py    importance scoring, one place to tune
-matchlens/detect/          one module per moment type, MatchContext holds the goal log
-matchlens/summary.py       MatchSummary
-matchlens/service.py       per-match cache used by the API and scripts
-matchlens/llm/             provider interface, Ollama client, FakeProvider (Phase 2)
-matchlens/recap/           context builder, validators, rules, pipeline, fallback, cache (Phase 2); translate, names_i18n (Phase 3)
-data/names/                Hindi and Tamil name maps (committed, edit by hand)
-prompts/                   prompt files (Phase 2); editing one invalidates cached outputs
-docs/data_notes.md         the real StatsBomb fields this code relies on
-```
-
-## Moment definitions
-
-### Player names
-
-Each event keeps the full StatsBomb name (`player`), the StatsBomb id (`player_id`) and adds `player_display_name`:
-`DISPLAY_NAME_OVERRIDES` in `config.py` (keyed by id or full name) first, then the lineup `player_nickname`, then the
-full name. Moments carry parallel `players` (full names), `player_ids` and `player_display_names`. Headlines and the
-names inside `stats` use display names.
-
-### Moment fields
-
-Every moment has an `id` (`m_001`, in match order), `minute`, `clock_label` (`23'`, `45+2'`, `90+3'`, `Pens`),
-`period`, `type`, `team`, `players`, `score_before` / `score_after` (home, away; in-play goals only),
-`importance` (0 to 1), a one-line `headline`, the `stats` behind it and `evidence` (event ids, all present in
-`/events`). Headlines state numbers and never claim a cause.
-
-* **goal**: any in-play goal, including penalties and own goals (credited to the team that benefits). Stats hold
-  the goal kind, assist, xG, whether it took the lead or equalised, any earlier shot in the same possession (rebounds)
-  and the completed passes of the scoring team in that possession before the shot.
-* **big_chance_missed**: an in-play shot with xG at or above `BIG_CHANCE_XG` (0.25) that did not score.
-* **red_card** / **second_yellow**: straight reds and second yellows. Plain yellows are not moments.
-* **momentum_swing**: every minute, compare the two teams' xG over the previous 10 minutes. The window leader is the
-  team ahead by at least `MOMENTUM_MIN_LEAD_XG` (0.15); otherwise nobody leads. A swing is logged when a different team
-  becomes leader and stays leader for at least `MOMENTUM_HOLD_MIN` (5) minutes. Windows are cut at the start of each
-  period and state is reset, so nothing spans half-time or the break before extra time. Both teams' xG and shots are in `stats`.
-* **substitution_impact**: for a team's substitution (same-team changes within 2 minutes count as one), compare that
-  team's xG and shots in the window before and after, inside the same period. Flagged when xG moves by at least 0.4 or
-  shots by at least 3 per 10 minutes, up or down. Windows shrink to fit the period; changes without 5 minutes on both
-  sides in the period are skipped. Opponent numbers are included for context.
-* **quick_response**: goals bunched together, measured in play time (half-time and the break before extra time do
-  not count). Either 2+ goals by one team within `QUICK_RESPONSE_BRACE_MIN` (5) minutes, or a goal that equalises or
-  takes the lead within `QUICK_RESPONSE_REPLY_MIN` (3) minutes of that team conceding. Overlapping triggers merge into
-  one moment, `stats.reasons` lists which fired, and `evidence` holds only the goal events.
-* **penalty_shootout**: one moment with every kick in order, the tally and the winner.
-
-Penalties awarded in play are excluded from the momentum and substitution windows (`EXCLUDE_PENALTIES_FROM_WINDOWS`),
-because a 0.78 xG penalty reflects a referee decision rather than a spell of play. They still count as goals and
-in all match totals. Shootout kicks never count towards score, xG or shot totals.
-
-### Importance
-
-`matchlens/importance.py` documents and holds all weights. In short: goals 0.60, +0.30 if the goal takes the lead or
-equalises, +0.10 if late or in extra time; big chances 0.25 + 0.5 x xG (+0.10 when the score is within a goal); red
-card 0.70, second yellow 0.65; quick response 0.80 (+0.10 if it takes the lead or equalises, +0.05 if late); shootout 0.95; momentum swings 0.25 to 0.55 by xG lead; substitutions 0.15 to 0.40 by xG change.
-
-## Phase 2: grounded recaps and explanations (local LLM)
-
-The model never sees raw events. It sees one match's `MatchSummary` and `Moment` list rendered as compact text
-(`matchlens/recap/context.py`), writes paragraphs that cite moment ids, and the backend checks every paragraph.
-
-### Ollama setup on Windows
-
-```powershell
-winget install Ollama.Ollama          # or download from https://ollama.com
-ollama --version
-ollama pull qwen3:8b                  # about 5 GB, fits in 8 GB of VRAM with room for the context
-ollama run qwen3:8b "Say hello"       # quick test; the Ollama app/service listens on http://localhost:11434
-```
-
-Pick a model by editing `OLLAMA_MODEL` in `matchlens/config.py` or setting `MATCHLENS_OLLAMA_MODEL` for one session:
-
-```powershell
-$env:MATCHLENS_OLLAMA_MODEL = "gemma3:12b"
-```
-
-Any instruct model that supports structured output works. On an 8 GB GPU stay at roughly 8B parameters with a
-4-bit build. Models with a thinking mode are run with thinking disabled (`OLLAMA_DISABLE_THINKING`); the client
-retries without the flag for models that do not support it. Cached outputs are keyed by model name, so switching
-models never serves another model's text.
-
-### Generate
-
-```powershell
-python scripts/generate_recap.py --audience all                       # analyst, broadcaster, fan for the default match
-python scripts/generate_recap.py --match 7580 --audience fan --length short
-python scripts/generate_recap.py --explain m_005 --audience broadcaster
-python scripts/generate_recap.py --template                           # deterministic baseline, no LLM
-python scripts/generate_recap.py --audience all --out recaps.md       # also save to a file
-```
-
-Output shows each paragraph followed by its `[m_00x]` citations, the validation report and timings.
-If Ollama is not running the script exits with a message saying how to start it.
-
-### API
-
-| Endpoint | Returns |
-|---|---|
-| `POST /matches/{id}/recap` body `{"audience": "analyst", "length": "medium", "language": "en", "refresh": false}` | recap, validation report, model name, generation time, `cached` |
-| `GET /matches/{id}/moments/{moment_id}/explain?audience=&language=` | `why_it_mattered`, `context`, `cites`, validation report |
-
-`audience` is `analyst`, `broadcaster` or `fan`; `length` is `short` or `medium`; `language` is `en`, `hi` or `ta`
-(see Phase 3 below).
-A server that is not running gives HTTP 503 with a hint; `/docs` has the schemas.
-
-### How validation works
-
-Each paragraph (and for explanations each text field) must pass all of these:
-
-1. **Citations.** At least one moment id; every id must exist and must have been part of the data given to the model.
-   The JSON schema sent to Ollama lists the valid ids as an enum, and the backend checks again.
-2. **Numbers.** Every number in the text must appear in the match summary or in the cited moments, as shown to the model.
-   Scores (`2-2`, either order), stoppage minutes (`90+3'`), decimals (xG), integers and counted number words ("two goals",
-   "twice") are separate kinds. A minute from an uncited moment fails.
-3. **Names.** A mention of a player who is not named in the cited moments fails (full name, display name, surname or given
-   name, ignoring accents and case). Capitalised words that are not teams, roster players or common sentence openers
-   (`NAME_CHECK_SENTENCE_STARTERS` in `config.py`) are treated as invented names. The title may not name players at all.
-
-4. **Score-state verbs.** "took the lead", "went ahead", "equalised", "levelled", "won" and "drew" are checked against the
-   score before and after the cited goal moments (and the goals behind a cited quick-response moment). A named minute narrows
-   the check to the goal at that minute; a named team must be the side that scored. "Won" and "drew" are checked against the
-   final score, the score after 90 minutes and the shootout winner.
-5. **Shootout claims.** The model sees the kicks as a numbered list (kick, team, taker, result). A sentence in a paragraph that
-   cites the shootout is checked for ordinals ("first penalty", "opening kick", "France's third penalty") and for a named
-   taker scoring, missing or being saved. Rules are in `matchlens/recap/rules.py`.
-6. **Banned phrases.** `BANNED_PHRASES` in `config.py` (title, trophy, champions, history, hosts, favourites, stadium, crowd,
-   record, ...) fails for every audience. The competition and stage text from the data is exempt.
-7. **Opinion words.** `OPINION_WORDS` in `config.py` (dramatic, well-taken, stunning, ...) fails for the analyst and the
-   broadcaster and is allowed for the fan (`OPINION_ALLOWED_AUDIENCES`).
-
-If anything fails, the model is called once more with the exact errors listed. The attempt with more valid paragraphs
-wins; invalid paragraphs are dropped; if none survives, the deterministic template recap is used
-(`matchlens/recap/fallback.py`, also the baseline to compare the model against). A model server that is not running is
-reported as an error, never papered over with the template. The `report` in every response says what was retried,
-dropped or replaced. Only model-written results are cached, in `data/generated/` (gitignored), keyed by match, audience,
-length, language, model and a hash of the files in `prompts/`; editing a prompt invalidates the cache.
-
-What validation cannot see: claims that use no numbers or names (who dominated, why something happened), correct numbers
-attached to the wrong thing (a real minute given to the wrong goal when both moments are cited), outside knowledge
-phrased without names or numbers, tone beyond the opinion-word list, wrong claims that avoid every listed verb or name, and misspelt names that are not close to
-any roster name. Prompts forbid all of these, but nothing enforces it.
-
-### Tests
-
-`python -m pytest` runs everything offline. The Ollama client is tested with a mock HTTP transport, the pipeline with a
-`FakeProvider`. `tests/test_ollama_integration.py` and `tests/test_ollama_translation.py` are marked `needs_ollama` and
-are skipped unless a server with the configured model is reachable.
-
-## Phase 3: Hindi and Tamil
-
-Nothing is generated directly in Hindi or Tamil. The English recap or explanation is generated and validated first (all
-of Phase 2), then each paragraph is translated on its own and checked again.
-
-```powershell
-python scripts/generate_recap.py --language hi --back-translate
-python scripts/generate_recap.py --audience all --language all --back-translate --out recaps_all.md
-```
-
-`--language en|hi|ta|all`. `--back-translate` asks the model to translate every Hindi or Tamil paragraph back to English and
-prints it under the paragraph, so a person can judge meaning drift. It is never used to accept or reject a translation.
-Over HTTP, `{"language": "hi"}` on the recap endpoint and `?language=ta` on the explain endpoint. The result carries
-`source_recap` (the validated English), each paragraph's `language` and `note`, and `report.translation`.
-
-### What is checked on each translated paragraph
-
-1. **Numbers.** The translation must contain exactly the English numbers, as Western digits (any Devanagari or Tamil digit
-   is converted to 0-9 first, and the report notes it). That covers scores, minutes (`90+3'`), xG and counts. Number words in
-   the English ("two goals", "twice") are shown to the model as digits; a digit for a spelt-out number or ordinal ("second"
-   -> 2) is not counted as invented.
-2. **Names.** Every player and team named in the English must appear as spelt in `data/names/{lang}.json`. A name written in
-   several words in the English ("Di María") may not shrink to one word. Names in Latin letters, names that are not in the
-   English, and text not mostly in the right script all fail.
-3. **Wording.** The Hindi and Tamil banned-phrase and opinion-word lists in `config.py` (substring match, so inflected
-   forms are caught).
-4. **Citations** are copied from the English paragraph, never regenerated.
-
-One retry with the exact errors. If it still fails, that paragraph is shown in English with a note in the target
-language and in English; nothing is dropped, and the report lists what failed. Results that contain such a paragraph are not
-cached, so the next request tries again.
-
-### Name maps and review
-
-`data/names/hi.json` and `data/names/ta.json` map each English display name (and the two team names) to its spelling in
-Hindi or Tamil script. Missing names are written by the model once; existing entries are never overwritten. **These files
-are first drafts, not reviewed: correct them by hand and set `"reviewed": true`.** Editing a map invalidates cached
-translations. The Hindi and Tamil banned and opinion lists in `config.py` (`BANNED_PHRASES`, `OPINION_WORDS`,
-`BANNED_PHRASE_EXEMPT`) are also first drafts marked for review.
-
-### Written shootout paragraph, glossary and quality
-
-- **Shootout paragraph.** The model never sees the shootout. A paragraph per audience is written from the kick list
-  (`matchlens/recap/shootout.py`), cites only the shootout moment, and is translated like any other paragraph.
-- **Banned and opinion lists are in the prompt**, as well as being checked afterwards (`rules.wording_instructions`).
-- **In-play penalties versus shootout kicks.** The data says "penalty in regular time" or "penalty in extra time"; a bare
-  "penalty" or "penalty spot" in play is rejected, and a shootout kick is always "in the shootout".
-- **Repetition and score lines.** A sentence repeated from an earlier paragraph, or a score line such as "France 2-2 France"
-  or one the cited moments do not show, is rejected.
-- **Football glossary** (`data/glossary/hi.json`, `ta.json`): 20 terms with a fixed translation (`use`) and accepted stems
-  (`accept`). When the English source uses a term (patterns in `matchlens/recap/glossary.py`), the translation must contain
-  one of its forms, and the translate prompt lists the fixed forms. First drafts, please review.
-- **Quality.** `config.LANGUAGE_QUALITY` says `en` stable, `hi` machine-translated, `ta` experimental. Every recap and
-  explain response has a `quality` field.
-
-### What this does not catch
-
-A translation can keep every number and name and still change the meaning (a verb, who did what, "regained" read as
-"maintained"). Use `--back-translate` and a Hindi or Tamil reader to judge it. Tamil in particular should be labelled
-experimental until someone has reviewed it.
-
-### Coverage, shootout and cache warming
-
-- **Coverage.** Every goal shown to the model must be cited by at least one of its paragraphs; missing goals trigger the
-  retry with the list. A goal still missing after the retry is noted in the report.
-- **The shootout is written, not generated.** Model paragraphs may not cite or mention the shootout (checked); only the
-  paragraph built from the kick list does. "Argentina drew 3-3" is rejected: write "the match ended 3-3".
-- **Show English.** Translated recaps have a per-paragraph and a global "Show English" toggle that displays the checked
-  English source under the translation ("Translated from the checked English text").
-- **Instant cached results.** `GET /matches/{id}/recap?audience=&length=&language=` and `explain?cached_only=true` only read
-  the cache (404 if absent); the web app uses them so a cached combination appears with no Generate click.
-- **`python scripts/warm_cache.py`** pre-generates every recap (3 matches x 3 audiences x 2 lengths x en/hi/ta) and an
-  explanation for every moment with importance >= 0.5. It is resumable (cache hits are skipped) and prints progress.
-
-## Phase 4: web app
-
-A dark, mobile-friendly Next.js app in `web/` that talks to the local FastAPI backend: match picker, final score and
-shootout result, xG timeline with goal markers, moments timeline with an importance slider, a moment side panel with
-"Explain", and a recap panel (audience, language EN/HI/TA with a quality badge, length). Every recap paragraph shows chips
-for the moments it cites (click to jump to and highlight the moment), and **How was this checked?** shows the validation
-report: attempts and their errors, retries, dropped paragraphs, English fallbacks, model and time.
-
-![Match page, English](docs/screenshots/match-en.png)
-![Match page, Hindi](docs/screenshots/match-hi.png)
-![Match page, Tamil](docs/screenshots/match-ta.png)
-
-More: [match picker](docs/screenshots/picker.png), [phone width](docs/screenshots/match-mobile-en.png).
-
-```powershell
-.\start.ps1            # backend on :8000 and web app on :3000 (needs Ollama for Generate)
-.\start.ps1 -Fake      # canned model for the 2022 final, no Ollama needed
-cd web; npm run test:e2e      # Playwright smoke test (starts both servers with the fake model)
-cd web; npm run screenshots   # regenerates docs/screenshots with the real model's cached recaps
-```
-
-First time: `cd web; npm install; npx playwright install chromium`. A recap takes about 30 seconds the first time (Hindi
-and Tamil longer) and is instant afterwards. If Ollama is not running the page says so. `GET /health` reports the model
-and `MATCHLENS_LLM_PROVIDER=fake` selects the canned provider used by the browser test.
-
-## Phase 5: live replay
-
-`WS /matches/{id}/live?speed=10&start=60` streams the match in order on a compressed clock (speed 1, 10, 30 or 60; breaks and
-the stoppage-time overlap between periods are cut out). Messages: `hello`, `tick` (clock, period, score), `event` (shots, subs,
-cards, period starts and ends), `score`, `moment`, `catchup` (after a seek), `end`. Commands: `pause`, `resume`,
-`{"cmd":"speed","value":30}`, `{"cmd":"seek","minute":60}` or `{"cmd":"seek","t":1800}`, `restart`.
-
-- **Incremental detection** (`matchlens/incremental.py`) only uses events up to the clock. A moment is released when nothing
-  later can change it: goals, big chances and cards at once; a quick response about five minutes after the last goal; a
-  substitution when its ten-minute window has been played or the period ends; a momentum swing when the leading run has ended;
-  the shootout when it ends. The tests prove no moment is released before its last evidence event has been streamed and that
-  the released set equals the batch detector's output on all three matches. Moment ids are copied from the batch run as labels
-  only.
-- **Captions.** A moment with importance >= 0.6 gets a one-line caption built from its data, instantly. If a cached explanation
-  exists for the audience and language it is shown under the caption; replay never asks the model for one.
-- **Web app.** "Watch live" on the match page: scoreboard with clock and period (the result is hidden), speed buttons, pause,
-  restart, a scrubber, the xG chart drawing in, moments popping into the list, a ticker of recent events, and at full time a
-  "Read the recap" button that opens the cached recap. Live replay needs the backend only, not Ollama.
-- `npm run record:live` in `web/` re-records `docs/screenshots/live.gif`.
-
-## Attribution
-
-Data: **StatsBomb Open Data**, https://github.com/statsbomb/open-data. Used under the StatsBomb Public Data User
-Agreement. If you publish or share analysis built on this data, state StatsBomb as the source and use their logo
-(see their media pack: https://statsbomb.com/media-pack/). StatsBomb provides the data as is, and this project is
-not affiliated with or endorsed by StatsBomb.
+Code: [MIT](LICENSE). The licence covers the source code only. The match data is not part of this repository and stays under StatsBomb's terms.

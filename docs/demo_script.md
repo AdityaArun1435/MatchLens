@@ -7,7 +7,7 @@ Each shot has a click path and one line of voiceover. Total length is about 90 s
 | # | Time | Screen | Do | Voiceover |
 |---|---|---|---|---|
 | 1 | 0:00 to 0:05 | Match picker | Open `http://localhost:3000`. Click **Argentina v France, 2022 final**. | "This is the 2022 World Cup final, and everything you will see runs on this laptop with no internet." |
-| 2 | 0:05 to 0:25 | Match page, **Watch live** | Click **Watch live**. Set speed to **30x**. Drag the scrubber to the 79th minute, or press the seek control and type 79. Let it play. | "I replay the match from the 79th minute. The score is hidden, the xG chart draws in as events arrive." |
+| 2 | 0:05 to 0:25 | Match page, **Watch live** | Click **Watch live**. Set speed to **30x**. Drag the scrubber to the 79th minute. Let it play. | "I replay the match from the 79th minute. The score is hidden, the xG chart draws in as events arrive." |
 | 3 | | Live view, 80' and 81' | Stay on the live view while the clock passes 80' and 81'. Point at the two goals, the caption, and the **quick response** moment popping into the list. | "Two France goals in under two minutes. The detector finds the moments as they happen, using only events up to the clock." |
 | 4 | 0:25 to 0:30 | Live view, full time | Wait for full time, or click the scrubber to the end. Click **Read the recap**. | "At full time I can open the recap." |
 | 5 | 0:30 to 0:45 | Recap panel, English | Keep audience **Analyst**, length **Medium**. Scroll slowly past the first paragraph (the result) and the 80' and 81' paragraph. | "A local 8 billion parameter model wrote this. It never saw raw data, only a list of detected moments." |
