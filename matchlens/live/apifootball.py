@@ -3,7 +3,7 @@ from .config import Settings
 from .base import BudgetExceeded, CachedSource, day_bucket, minute_bucket
 
 # 'live' and 'detail' are sub-budgets of the daily total. See docs/data_sources.md.
-CATEGORY_LIMIT_ATTR = {"live": "af_live_daily_limit", "detail": "af_detail_daily_limit"}
+CATEGORY_LIMIT_ATTR = {"live": "af_live_daily_limit", "detail": "af_detail_daily_limit", "backfill": "af_backfill_daily_limit"}
 
 
 class ApiFootball(CachedSource):
@@ -44,6 +44,18 @@ class ApiFootball(CachedSource):
     def fixtures_on(self, day: str, ttl_s: int = 10800) -> list[dict]:
         return self.get("/fixtures", {"date": day}, ttl_s=ttl_s, category="map")["response"]
 
-    def fixture_detail(self, af_fixture_id: int, ttl_s: int = 600) -> list[dict]:
-        """One call returns events, lineups and statistics for a fixture."""
-        return self.get("/fixtures", {"id": af_fixture_id}, ttl_s=ttl_s, category="detail")["response"]
+    def fixture_detail(self, af_fixture_id: int, ttl_s: int = 600, category: str = "detail") -> list[dict]:
+        """One call returns events, lineups and statistics for a fixture. Lookup by id works on the free plan for any season."""
+        return self.get("/fixtures", {"id": af_fixture_id}, ttl_s=ttl_s, category=category)["response"]
+
+    # The free plan cannot list fixtures by season or by dates older than yesterday, but head-to-head and
+    # lookup by id are open. These three calls are how old matches get linked. See docs/data_gaps.md.
+    def head_to_head(self, af_home_id: int, af_away_id: int, ttl_s: int = 30 * 86400) -> list[dict]:
+        return self.get("/fixtures/headtohead", {"h2h": f"{af_home_id}-{af_away_id}"}, ttl_s=ttl_s, category="backfill")["response"]
+
+    def league_teams(self, league_id: int, season: int = 2024, ttl_s: int = 30 * 86400) -> list[dict]:
+        """Team ids of a league from the newest season the free plan allows. Promoted clubs are missing and found by search."""
+        return self.get("/teams", {"league": league_id, "season": season}, ttl_s=ttl_s, category="backfill")["response"]
+
+    def search_team(self, name: str, ttl_s: int = 30 * 86400) -> list[dict]:
+        return self.get("/teams", {"search": name}, ttl_s=ttl_s, category="backfill")["response"]

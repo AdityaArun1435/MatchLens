@@ -60,6 +60,12 @@ class FakeStore:
                 out.append({"af_fixture_id": None, **row, "home": self._team(row["home_team_id"]), "away": self._team(row["away_team_id"])})
         return sorted(out, key=lambda r: r["utc_date"])
 
+    def backfill_candidates(self, limit):
+        rows = [{"af_fixture_id": None, "map_attempts": 0, "detail_status": None, **r, "home": self._team(r["home_team_id"]), "away": self._team(r["away_team_id"])}
+                for r in self.tables["fixtures"].values()]
+        rows = [r for r in rows if r["status"] == "FINISHED" and r["detail_status"] is None]
+        return sorted(rows, key=lambda r: r["utc_date"])[:limit]
+
     def live_states(self, ids):
         return {k[0]: v for k, v in self.tables["live_state"].items() if k[0] in ids}
 

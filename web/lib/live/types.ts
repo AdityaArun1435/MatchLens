@@ -1,5 +1,8 @@
 export type MatchState = "upcoming" | "live" | "halftime" | "finished" | "postponed";
 
+/** Whether events and lineups of a finished match were fetched: pending (queued), ok, empty (source has none) or unavailable (not linked). */
+export type DetailStatus = "pending" | "ok" | "empty" | "unavailable";
+
 export interface TeamRef {
   id: number;
   name: string;
@@ -25,6 +28,7 @@ export interface MatchView {
   homeScore: number | null;
   awayScore: number | null;
   state: MatchState;
+  detailStatus: DetailStatus;
   /** Minute with a prime mark, for example 67' or 45+2', only when the live feed provided it. */
   minute: string | null;
   /** `live`: from the live feed. `delayed`: from football-data.org, which is delayed on the free plan. */

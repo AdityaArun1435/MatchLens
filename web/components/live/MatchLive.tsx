@@ -43,10 +43,20 @@ function Header({ m }: { m: MatchView }) {
   );
 }
 
+/** What to say when there is nothing to show, by match status. `what` is "events" or "lineups". */
+export function emptyMessage(m: MatchView, what: "events" | "lineups", hasOtherData: boolean): string {
+  if (m.state === "upcoming") return what === "lineups" ? "Lineups usually appear about an hour before kick-off." : "Events appear here once the match starts.";
+  if (m.state === "postponed") return "This match has not been played.";
+  if (m.state === "live" || m.state === "halftime") return "Waiting for data.";
+  if (m.detailStatus === "pending") return "Details for this match are queued and will appear here automatically.";
+  if (m.detailStatus === "ok" && what === "events" && hasOtherData) return "No events were recorded for this match.";
+  return "Event data isn't available for this match on our free data plan.";
+}
+
 function Events({ d }: { d: MatchDetail }) {
   const { match: m, events } = d;
   if (events.length === 0) {
-    return <p className="card p-4 text-sm text-muted">{m.state === "upcoming" ? "Events appear here once the match starts." : "No events recorded yet."}</p>;
+    return <p className="card p-4 text-sm text-muted">{emptyMessage(m, "events", d.lineups.length > 0)}</p>;
   }
   return (
     <ol className="card divide-y divide-line">
@@ -67,7 +77,7 @@ function Events({ d }: { d: MatchDetail }) {
   );
 }
 
-function LineupCard({ lineup, name }: { lineup: Lineup | undefined; name: string }) {
+function LineupCard({ lineup, name, empty }: { lineup: Lineup | undefined; name: string; empty: string }) {
   return (
     <div className="card p-3">
       <h3 className="mb-2 text-sm font-semibold">{name}{lineup?.formation ? <span className="ml-2 text-xs font-normal text-muted">{lineup.formation}</span> : null}</h3>
@@ -91,7 +101,7 @@ function LineupCard({ lineup, name }: { lineup: Lineup | undefined; name: string
           {lineup.coach ? <p className="mt-3 text-xs text-muted">Coach: {lineup.coach}</p> : null}
         </>
       ) : (
-        <p className="text-sm text-muted">Not published yet. Lineups usually appear about an hour before kick-off.</p>
+        <p className="text-sm text-muted">{empty}</p>
       )}
     </div>
   );
@@ -115,8 +125,8 @@ export function MatchLive({ id }: { id: number }) {
       <section>
         <h2 className="display mb-2 text-xl font-semibold">Lineups</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <LineupCard lineup={data.lineups.find((l) => l.teamId === m.home.id)} name={m.home.name} />
-          <LineupCard lineup={data.lineups.find((l) => l.teamId === m.away.id)} name={m.away.name} />
+          <LineupCard lineup={data.lineups.find((l) => l.teamId === m.home.id)} name={m.home.name} empty={emptyMessage(m, "lineups", false)} />
+          <LineupCard lineup={data.lineups.find((l) => l.teamId === m.away.id)} name={m.away.name} empty={emptyMessage(m, "lineups", false)} />
         </div>
       </section>
     </div>

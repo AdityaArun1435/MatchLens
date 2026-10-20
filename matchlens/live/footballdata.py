@@ -32,3 +32,7 @@ class FootballData(CachedSource):
 
     def standings(self, code: str, ttl_s: int = 1200) -> dict:
         return self.get(f"/competitions/{code}/standings", None, ttl_s=ttl_s)
+
+    def finished_matches(self, code: str, ttl_s: int = 6 * 3600) -> dict:
+        """Every finished match of the current season for one competition (one request)."""
+        return self.get(f"/competitions/{code}/matches", {"status": "FINISHED"}, ttl_s=ttl_s)

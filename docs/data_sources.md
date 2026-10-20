@@ -19,14 +19,14 @@ Use: the backbone for competitions, teams, fixtures, standings. Reliable and gen
 
 ## API-Football (api-sports.io, free plan)
 
-The official pricing and docs pages sit behind a bot check and could not be fetched, so these numbers come from secondary sources and the [terms summary](https://api-sports.io/terms). **Confirm all of it in your dashboard when you add the key** (the code logs the real quota from response headers).
+The official pricing and docs pages sit behind a bot check and could not be fetched, so some numbers come from secondary sources and the [terms summary](https://api-sports.io/terms). The quota (100 per day) and the season and date limits were confirmed with a real free key.
 
 | Item | Free plan (as reported) |
 |---|---|
 | Quota | 100 requests per day, resets 00:00 UTC, no rollover |
 | Rate limit | 10 per minute |
 | Endpoints | All of them, including live, events, lineups, statistics, odds |
-| Seasons | Reports conflict. Some say the current season is limited on free. **Unverified: test with the key first.** |
+| Seasons and dates | **Verified 2026-10-20 with a free key:** listing by season works only for 2022 to 2024, and by date only from yesterday to tomorrow. Lookup by fixture id, events, lineups and head-to-head work for any season. See [data_gaps.md](data_gaps.md). |
 | Terms | No licence to publish league-owned data is granted ("rights come from the relevant authorities"); no reselling raw data; no multiple accounts to dodge limits. Caching and attribution are not addressed. |
 
 Use: live scores, events, lineups, team and player statistics, odds. One `fixtures?live=all` call returns every live match with its events, so it is the cheapest live feed.
@@ -51,7 +51,8 @@ Visitors never call a source. Only the scheduled refresh does, so usage depends 
 | Use | Calls/day | Rule |
 |---|---|---|
 | Live poll (`live=all`) | up to 70 | Only while a match is in its live window; at most one every 4 minutes, so about 4.7 hours of continuous live coverage; the interval stretches automatically when the day's budget runs low |
-| Day mapping (`fixtures?date=`) | 2 | Links our fixture ids to API-Football ids; also refreshes scores |
+| Day mapping (`fixtures?date=`) | 2 | Links today's fixtures to API-Football ids; also refreshes scores. Only yesterday to tomorrow is allowed on free |
+| Backfill (head-to-head, team ids, lookup by id) | up to 45 | Old finished matches, oldest first, only when nothing is live and the day is under 60 used |
 | Match detail (`fixtures?id=`) | up to 20 | Lineups, events, statistics for a match page; cached 2 minutes while live, 6 hours after full time, one per fixture at a time |
 | Reserve | 5 | Never spent |
 
