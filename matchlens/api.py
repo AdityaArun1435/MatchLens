@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config, loader, service
-from .live import LiveSession, ReplayEngine
+from .replay import LiveSession, ReplayEngine
 from .llm import LLMError, LLMProvider, LLMUnavailable, get_provider
 from .models import Event, MatchSummary, Moment
 from .recap import pipeline

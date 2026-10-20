@@ -14,7 +14,7 @@ const browser = await chromium.launch();
 
 async function matchPage(language, viewport, file, { openMoment = true, openReport = true } = {}) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
-  await page.goto(`${BASE}/match/${MATCH}`);
+  await page.goto(`${BASE}/classic/match/${MATCH}`);
   await page.getByTestId("final-score").waitFor();
   if (language !== "en") await page.getByTestId("language-toggle").getByRole("button", { name: language.toUpperCase() }).click();
   const generate = page.getByTestId("recap-generate");
@@ -39,7 +39,7 @@ const desktop = { width: 1360, height: 900 };
 for (const lang of ["en", "hi", "ta"]) await matchPage(lang, desktop, `match-${lang}.png`);
 
 const picker = await browser.newPage({ viewport: desktop });
-await picker.goto(BASE);
+await picker.goto(`${BASE}/classic`);
 await picker.getByTestId("match-list").waitFor();
 await picker.screenshot({ path: path.join(out, "picker.png") });
 console.log("saved picker.png");

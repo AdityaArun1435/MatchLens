@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("final: open a moment, explain it, generate an English analyst recap and read how it was checked", async ({ page }) => {
   // Match picker: the three preloaded matches
-  await page.goto("/");
+  await page.goto("/classic");
   await expect(page.getByTestId("match-list").locator("a")).toHaveCount(3);
   await page.getByTestId("match-card-3869685").click();
   await expect(page).toHaveURL(/\/match\/3869685$/);
@@ -49,7 +49,7 @@ test("final: open a moment, explain it, generate an English analyst recap and re
 });
 
 test("Hindi shows its quality badge and keeps a paragraph in English with a note when translation fails the checks", async ({ page }) => {
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("language-toggle").getByRole("button", { name: "HI" }).click();
   await expect(page.getByTestId("quality-badge").first()).toHaveText("Machine-translated");
   await page.getByTestId("recap-generate").click();
@@ -61,7 +61,7 @@ test("Hindi shows its quality badge and keeps a paragraph in English with a note
 
 test("backend offline gives a clear message", async ({ page }) => {
   await page.route("**/matches/3869685/summary", (route) => route.abort());
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await expect(page.getByTestId("error-notice")).toContainText("backend is not running");
 });
 
@@ -69,14 +69,14 @@ test("Ollama not running gives a clear message when generating", async ({ page }
   await page.route("**/matches/3869685/recap", (route) =>
     route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Cannot reach Ollama at http://localhost:11434." }) }),
   );
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("length-toggle").getByRole("button", { name: "Short" }).click(); // a combination nobody has generated
   await page.getByTestId("recap-generate").click();
   await expect(page.getByTestId("error-notice")).toContainText("Ollama is not running");
 });
 
 test("a cached recap shows instantly with no Generate click", async ({ page }) => {
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("audience-toggle").getByRole("button", { name: "Fan" }).click();
   await page.getByTestId("recap-generate").click();
   await expect(page.getByTestId("recap-result")).toBeVisible();
@@ -102,7 +102,7 @@ test("Show English: per paragraph and for all paragraphs of a translated recap",
       translation: { language: "hi", units: [], names_added: [], names_missing: [], seconds: 1, fallbacks: 1, retries: 0 } },
   };
   await page.route(/\/matches\/3869685\/recap\?.*language=hi/, (route) => route.fulfill({ json: translated }));
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   await page.getByTestId("language-toggle").getByRole("button", { name: "HI" }).click();
   await expect(page.getByTestId("recap-result")).toBeVisible();
   await expect(page.getByTestId("english-source")).toHaveCount(0);
@@ -119,7 +119,7 @@ test("Show English: per paragraph and for all paragraphs of a translated recap",
 
 test("desktop: the moments card starts level with the recap card", async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   const recap = await page.getByTestId("recap-panel").boundingBox();
   const moments = await page.getByTestId("moments-scroll").boundingBox();
   expect(recap && moments).toBeTruthy();
@@ -132,7 +132,7 @@ test("desktop: the moments card starts level with the recap card", async ({ page
 
 test("phone: the xG chart is tall and scrolls sideways instead of shrinking", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/match/3869685");
+  await page.goto("/classic/match/3869685");
   const chart = page.getByTestId("xg-scroll");
   await expect(chart).toBeVisible();
   const box = await chart.boundingBox();

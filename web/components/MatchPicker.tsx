@@ -11,7 +11,7 @@ function MatchCard({ m }: { m: MatchListItem }) {
   const badges = [m.went_to_extra_time ? "After extra time" : null, m.shootout_winner ? `${m.shootout_winner} on penalties` : null].filter(Boolean);
   return (
     <Link
-      href={`/match/${m.match_id}`}
+      href={`/classic/match/${m.match_id}`}
       data-testid={`match-card-${m.match_id}`}
       className="card group block p-5 transition-colors hover:border-accent/50"
     >
