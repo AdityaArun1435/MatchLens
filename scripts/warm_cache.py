@@ -3,7 +3,7 @@
     python scripts/warm_cache.py                      # 3 matches x 3 audiences x 2 lengths x en/hi/ta, plus explanations
     python scripts/warm_cache.py --no-explain         # recaps only
     python scripts/warm_cache.py --languages en       # only English
-    python scripts/warm_cache.py --matches 3869685    # one match
+    python scripts/warm_cache.py --match 3869685 --min-importance 0.7 --max-minutes 40   # one match, big moments, time-boxed
 
 Resumable: anything already in the cache (data/generated/) is skipped, so stop it with Ctrl+C and run it again to carry on.
 A result that fell back to the template, or has a paragraph left in English, is not cached by design and is tried again
@@ -32,12 +32,13 @@ def fmt(seconds: float) -> str:
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--matches", type=int, nargs="*", help="match ids (default: every preloaded match)")
+    p.add_argument("--matches", "--match", type=int, nargs="*", help="match ids (default: every preloaded match)")
     p.add_argument("--audiences", nargs="*", default=list(config.AUDIENCES), choices=config.AUDIENCES)
     p.add_argument("--lengths", nargs="*", default=list(config.LENGTHS), choices=config.LENGTHS)
     p.add_argument("--languages", nargs="*", default=list(config.LANGUAGES), choices=config.LANGUAGES)
     p.add_argument("--no-explain", action="store_true")
     p.add_argument("--min-importance", type=float, default=0.5)
+    p.add_argument("--max-minutes", type=float, help="stop after this many minutes, even if jobs are left (resume later)")
     p.add_argument("--model")
     args = p.parse_args()
 
@@ -66,6 +67,9 @@ def main() -> None:
     try:
         for n, (label, job) in enumerate(jobs, start=1):
             t0 = time.perf_counter()
+            if args.max_minutes and t0 - started > args.max_minutes * 60:
+                print(f"\nTime limit of {args.max_minutes:g} minutes reached. Run the script again to resume.")
+                break
             if len(job) == 2:
                 m, req = job
                 result = pipeline.get_recap(m, req, provider)

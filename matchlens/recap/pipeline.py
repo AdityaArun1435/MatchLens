@@ -138,12 +138,12 @@ def run_recap(
     validator = Validator(match, ctx, audience, language)
     required = [m for m in ctx.moments.values() if m.type == "goal"]
     lo_hi = config.PARAGRAPHS_PER_LENGTH[length]
-    system = prompts.load("system_base")
+    system = prompts.load_filled("system_base", match)
     user = prompts.render(
-        prompts.load("recap_task"),
+        prompts.load_filled("recap_task", match),
         context=ctx.text,
         audience=audience,
-        audience_instructions=prompts.load(f"audience_{audience}"),
+        audience_instructions=prompts.load_filled(f"audience_{audience}", match),
         wording=rules.wording_instructions(audience),
         length=length,
         length_instructions=prompts.load(f"length_{length}"),
@@ -213,13 +213,13 @@ def run_explanation(
     ctx: Context = build_context(match, min_importance=0.0, target=moment_id)
     report = ValidationReport(method="llm")
     validator = Validator(match, ctx, audience, language)
-    system = prompts.load("system_base")
+    system = prompts.load_filled("system_base", match)
     user = prompts.render(
-        prompts.load("explain_task"),
+        prompts.load_filled("explain_task", match),
         context=ctx.text,
         moment_id=moment_id,
         audience=audience,
-        audience_instructions=prompts.load(f"audience_{audience}"),
+        audience_instructions=prompts.load_filled(f"audience_{audience}", match),
         wording=rules.wording_instructions(audience),
         language_instructions=prompts.load(f"language_{language}"),
         ids=", ".join(ctx.shown_ids),
