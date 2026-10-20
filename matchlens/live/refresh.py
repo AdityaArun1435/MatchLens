@@ -96,6 +96,8 @@ class Refresher:
     def refresh_standings(self, code: str) -> int:
         payload = self.fd.standings(code)
         comp_id = COMPETITIONS[code][0]
+        comp = {**payload.get("competition", {}), "id": comp_id, "code": code, "name": payload.get("competition", {}).get("name", code)}
+        self.store.upsert("competitions", [nm.competition_row(comp, COMPETITIONS[code][1], payload.get("season"))], "id")
         rows = nm.standing_rows(payload, comp_id)
         teams = {}
         for block in payload.get("standings", []):

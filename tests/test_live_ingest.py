@@ -108,7 +108,9 @@ def test_fd_fixtures_and_standings_are_stored():
     router.add("football-data", "/competitions/PL/standings", {"season": {"startDate": "2026-08-15"}, "standings": [
         {"type": "TOTAL", "table": [{"position": 1, "team": {"id": 57, "name": "Arsenal FC"}, "playedGames": 9, "won": 8, "draw": 1,
                                       "lost": 0, "points": 25, "goalsFor": 20, "goalsAgainst": 5, "goalDifference": 15, "form": "W,W,W"}]}]})
+    store.tables["competitions"].clear()  # standings must work even before any fixtures refresh created the competition
     assert refresher.refresh_standings("PL") == 1
+    assert store.tables["competitions"][(2021,)]["season"] == 2026
     assert store.tables["standings"][(2021, 2026, "TOTAL", "", 1)]["points"] == 25
 
 
