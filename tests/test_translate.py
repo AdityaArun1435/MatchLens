@@ -10,13 +10,16 @@ from matchlens.recap.models import Recap, RecapParagraph, RecapRequest
 from matchlens.recap.pipeline import get_explanation, get_recap, run_explanation, run_recap
 from matchlens.recap.translate import TranslationChecker, back_translate, normalise_digits, translate_recap
 
+from matchlens.recap.shootout import shootout_paragraph
+
 from .recap_fixtures import small_match
 from .test_recap_pipeline import GOOD
 from .translate_helpers import FILLER, native, router
 
 NAMES = ["A", "B", "Ben Brook", "Alan Archer", "Dan Dale", "Cal Cross"]
 LANGS = ["hi", "ta"]
-ENGLISH = Recap(title=GOOD["title"], paragraphs=[RecapParagraph(**p) for p in GOOD["paragraphs"]])
+SHOOTOUT = shootout_paragraph(small_match(), "analyst")
+ENGLISH = Recap(title=GOOD["title"], paragraphs=[*(RecapParagraph(**p) for p in GOOD["paragraphs"]), SHOOTOUT])
 EXPLAIN = {
     "moment_id": "m_002",
     "why_it_mattered": "Alan Archer levelled the score at 26', making it 1-1.",
@@ -80,7 +83,7 @@ def test_names_not_in_the_right_script_are_retried_then_reported_missing(match):
 @pytest.mark.parametrize("lang", LANGS)
 def test_good_translation_keeps_cites_numbers_and_order(match, lang):
     recap, report, provider = run(match, lang)
-    assert [p.cites for p in recap.paragraphs] == [p["cites"] for p in GOOD["paragraphs"]]
+    assert [p.cites for p in recap.paragraphs] == [p.cites for p in ENGLISH.paragraphs]
     assert all(p.language == lang and p.note is None for p in recap.paragraphs)
     assert [u.status for u in report.units] == ["translated"] * 5 and report.fallbacks == 0 and report.retries == 0
     assert "0-1" in recap.paragraphs[0].text and "11" in recap.paragraphs[0].text
@@ -208,7 +211,7 @@ def test_an_unmapped_name_falls_back_without_calling_the_model_for_that_paragrap
     provider = provider_for("hi", names_override=lambda a: {k: v for k, v in a.items() if k != "Cal Cross"})
     recap, report = translate_recap(match, ENGLISH, "hi", "analyst", provider)
     assert report.names_missing == ["Cal Cross"]
-    unit = next(u for u in report.units if u.unit == "paragraph 4")  # "Cal Cross" is not in this paragraph
+    unit = next(u for u in report.units if u.unit == "paragraph 3")  # "Cal Cross" is not in this paragraph
     assert unit.status == "translated"
     english = Recap(title="t", paragraphs=[RecapParagraph(text="Cal Cross scored in the shootout 1-0.", cites=["m_006"])])
     out, rep = translate_recap(match, english, "hi", "analyst", provider)
@@ -236,7 +239,7 @@ def test_get_recap_translates_the_validated_english_and_caches_each_language(mat
     res = get_recap(match, RecapRequest(language=lang), provider)
     assert res.language == lang and res.source_recap.title == GOOD["title"] and not res.cached
     assert res.report.method == "llm" and res.report.translation.language == lang and res.report.translation.fallbacks == 0
-    assert [p.cites for p in res.recap.paragraphs] == [p["cites"] for p in GOOD["paragraphs"]]
+    assert [p.cites for p in res.recap.paragraphs] == [p.cites for p in ENGLISH.paragraphs]
     calls = len(provider.calls)
     assert get_recap(match, RecapRequest(language=lang), provider).cached and len(provider.calls) == calls
     english = get_recap(match, RecapRequest(language="en"), provider)
@@ -320,8 +323,8 @@ def test_a_multi_word_name_in_the_english_may_not_shrink_to_its_last_word(match)
     checker = TranslationChecker(match, "hi", "analyst", names)
     full, surname = native("Alan Archer", "hi"), native("Alan Archer", "hi").split()[-1]
     first = native("Alan Archer", "hi").split()[0]
-    source = "Alan Archer levelled at 26'."
+    source = "Alan Archer scored at 26'."
     assert checker.check(source, f"{full} 26 शब्द") == []
     assert checker.check(source, f"{surname} 26 शब्द") == []
     assert any("must write Alan Archer" in e for e in checker.check(source, f"{first} 26 शब्द"))
-    assert checker.check("Archer levelled at 26'.", f"{first} 26 शब्द") == []  # one word in the English: any word will do
+    assert checker.check("Archer scored at 26'.", f"{first} 26 शब्द") == []  # one word in the English: any word will do

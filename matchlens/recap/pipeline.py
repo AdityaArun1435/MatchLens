@@ -9,7 +9,8 @@ from pydantic import BaseModel, ValidationError
 from .. import config
 from ..llm import LLMError, LLMProvider
 from ..service import ProcessedMatch
-from . import cache, names_i18n, prompts, translate
+from . import cache, names_i18n, prompts, rules, translate
+from .shootout import HIDDEN_FROM_MODEL, shootout_paragraph
 from .context import Context, build_context
 from .fallback import fallback_explanation, fallback_recap, fallback_title
 from .models import (
@@ -101,6 +102,10 @@ def _recap_attempt(data, validator: Validator, attempt_no: int) -> _Attempt:
         errs = validator.check_paragraph(text, p.cites)
         att.items.append((i, text, p.cites, errs))
         errors += [f"Paragraph {i}: {e}" for e in errs]
+    for idx, repeats in rules.repeated_sentences([text for _, text, _, _ in att.items]).items():
+        number, text, cites, errs = att.items[idx]
+        att.items[idx] = (number, text, cites, errs + repeats)
+        errors += [f"Paragraph {number}: {e}" for e in repeats]
     att.report.items_valid = len(att.valid)
     att.report.errors = errors
     return att
@@ -118,9 +123,9 @@ def run_recap(
     _english_only(language)
     cutoff = config.RECAP_MIN_IMPORTANCE if min_importance is None else min_importance
     report = ValidationReport(method="llm")
-    ctx = build_context(match, min_importance=cutoff)
+    ctx = build_context(match, min_importance=cutoff, exclude_types=HIDDEN_FROM_MODEL)
     if not ctx.shown_ids:
-        ctx = build_context(match, min_importance=0.0)
+        ctx = build_context(match, min_importance=0.0, exclude_types=HIDDEN_FROM_MODEL)
         report.notes.append(f"no moment reached importance {cutoff}; every moment was provided instead")
     if not ctx.shown_ids:
         report.method, report.fallback_reason = "fallback", "the match has no detected moments"
@@ -134,6 +139,7 @@ def run_recap(
         context=ctx.text,
         audience=audience,
         audience_instructions=prompts.load(f"audience_{audience}"),
+        wording=rules.wording_instructions(audience),
         length=length,
         length_instructions=prompts.load(f"length_{length}"),
         language_instructions=prompts.load(f"language_{language}"),
@@ -165,7 +171,11 @@ def run_recap(
     title = best.title
     if best.title_errors or not title:
         title, report.title_replaced = fallback_title(match), True
-    return Recap(title=title, paragraphs=[RecapParagraph(text=t, cites=c) for _, t, c, _ in best.valid]), report
+    paragraphs = [RecapParagraph(text=t, cites=c) for _, t, c, _ in best.valid]
+    if (shootout := shootout_paragraph(match, audience)) is not None:
+        paragraphs.append(shootout)
+        report.notes.append("the shootout paragraph was written from the kick list, not by the model")
+    return Recap(title=title, paragraphs=paragraphs), report
 
 
 # ---- explanation -----------------------------------------------------------------------------------
@@ -200,6 +210,7 @@ def run_explanation(
         moment_id=moment_id,
         audience=audience,
         audience_instructions=prompts.load(f"audience_{audience}"),
+        wording=rules.wording_instructions(audience),
         language_instructions=prompts.load(f"language_{language}"),
         ids=", ".join(ctx.shown_ids),
     )

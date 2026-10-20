@@ -13,7 +13,7 @@ import unicodedata
 from .. import config
 from ..llm import LLMError, LLMProvider, LLMUnavailable
 from ..service import ProcessedMatch
-from . import prompts
+from . import glossary, prompts
 from .context import build_context
 from .models import (
     MomentExplanation,
@@ -145,6 +145,7 @@ class TranslationChecker:
         errors += self._check_numbers(english, text)
         errors += self._check_names(english, text)
         errors += self._check_latin(text)
+        errors += glossary.check_terms(english, text, self.language)
         errors += check_banned_phrases(text, self.language)
         errors += check_opinion_words(text, self.audience, self.language)
         return errors
@@ -221,6 +222,7 @@ def translate_unit(
         prompts.load("translate_task"),
         kind=kind, kind_upper=kind.upper(), language_name=config.LANGUAGE_LABELS[lang],
         language_instructions=prompts.load(f"language_{lang}"), glossary=checker.glossary(english),
+        terms=glossary.prompt_lines(english, lang),
         source=digitise_number_words(english),
     )
     log: list[str] = []

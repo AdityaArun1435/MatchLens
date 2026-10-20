@@ -19,7 +19,6 @@ GOOD = {
         {"text": "B took the lead through Ben Brook at 11' to make it 0-1.", "cites": ["m_001"]},
         {"text": "Alan Archer levelled at 26' (1-1) and put A ahead at 86' (2-1).", "cites": ["m_002", "m_005"]},
         {"text": "Dan Dale's shot was saved at 61', xG 0.40.", "cites": ["m_004"]},
-        {"text": "B won the shootout 1-0.", "cites": ["m_006"]},
     ],
 }
 
@@ -44,10 +43,14 @@ def run(match, outputs, **kw):
 def test_good_answer_passes_first_time_and_prompt_is_grounded(match):
     recap, report, provider = run(match, [GOOD])
     assert report.method == "llm" and not report.retried and len(report.attempts) == 1 and not report.dropped
-    assert [p.text for p in recap.paragraphs] == [p["text"] for p in GOOD["paragraphs"]]
+    assert [p.text for p in recap.paragraphs[:-1]] == [p["text"] for p in GOOD["paragraphs"]]
+    last = recap.paragraphs[-1]  # written from the kick list, not by the model
+    assert last.cites == ["m_006"] and "Kick 1: B, Cal Cross, scored." in last.text and "shootout paragraph" in report.notes[0]
     call = provider.calls[0]
     assert "[m_001] 11'" in call["user"] and "Valid moment ids:" in call["user"]
     assert "m_003" not in call["schema"]["properties"]["paragraphs"]["items"]["properties"]["cites"]["items"]["enum"]
+    assert "m_006" not in call["user"] and "m_006" not in call["schema"]["properties"]["paragraphs"]["items"]["properties"]["cites"]["items"]["enum"]
+    assert "Never use these words" in call["user"] and "trophy" in call["user"] and "dramatic" in call["user"]
     assert "Analyst" in call["user"] and "Hard rules" in call["system"]
     assert "events" not in call["user"].lower().split("moments (chronological)")[0]  # no raw-event dump
 

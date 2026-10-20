@@ -227,6 +227,8 @@ class Validator:
         errors += self.check_numbers(text, cites)
         errors += self.check_names(text, cites)
         errors += self.check_wording(text)
+        errors += rules.check_penalty_wording(text, cites, self.ctx.moments)
+        errors += rules.check_score_lines(text, cites, self.ctx.moments, self.match.meta, self.match.summary)
         errors += self.check_score_verbs(text, cites)
         errors += self.check_shootout(text, cites)
         return errors

@@ -81,6 +81,8 @@ def _facts(m: Moment, home: str, away: str) -> tuple[list[str], set[str]]:
 
     if m.type == "goal":
         kind = s["goal_kind"].replace("_", " ")
+        if s["goal_kind"] == "penalty":  # always say which kind of penalty: in play (with the period) or in the shootout
+            kind = "penalty in regular time" if m.period <= 2 else "penalty in extra time"
         out.append(f"goal kind: {kind}")
         if s.get("scorer"):
             out.append(f"{'player who put it in' if s['goal_kind'] == 'own_goal' else 'scorer'}: {add_name(s['scorer'])}")
@@ -149,9 +151,14 @@ def moment_block(m: Moment, meta, *, target: bool = False) -> tuple[str, set[str
     return "\n".join(lines), names
 
 
-def build_context(match: ProcessedMatch, *, min_importance: float = 0.0, target: str | None = None) -> Context:
-    """Summary plus the moments at or above `min_importance` (the target is always included)."""
-    shown = [m for m in match.moments if m.importance >= min_importance or m.id == target]
+def build_context(
+    match: ProcessedMatch, *, min_importance: float = 0.0, target: str | None = None, exclude_types: frozenset[str] = frozenset()
+) -> Context:
+    """Summary plus the moments at or above `min_importance` (the target is always included).
+
+    `exclude_types` hides whole moment types from the model, e.g. the shootout, which is written from the kick list.
+    """
+    shown = [m for m in match.moments if (m.importance >= min_importance or m.id == target) and m.type not in exclude_types]
     summary_text = summary_block(match.summary)
     texts, names = {}, {}
     for m in shown:

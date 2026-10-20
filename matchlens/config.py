@@ -57,6 +57,7 @@ import os  # noqa: E402
 PROMPTS_DIR = ROOT / "prompts"
 GENERATED_DIR = ROOT / "data" / "generated"
 NAMES_DIR = ROOT / "data" / "names"  # {lang}.json name maps, committed so they can be corrected by hand
+GLOSSARY_DIR = ROOT / "data" / "glossary"  # {lang}.json fixed football terms, committed, edit by hand
 
 LLM_PROVIDER = os.environ.get("MATCHLENS_LLM_PROVIDER", "ollama")  # "ollama"; add other providers in llm/factory.py
 OLLAMA_URL = os.environ.get("MATCHLENS_OLLAMA_URL", "http://localhost:11434")
@@ -128,6 +129,8 @@ NAME_CHECK_SENTENCE_STARTERS = {
 
 # --- Phase 3: Hindi and Tamil ------------------------------------------------------------------------
 LANGUAGE_LABELS = {"en": "English", "hi": "Hindi", "ta": "Tamil"}
+# How far to trust each language; returned as `quality` in API responses and shown as a badge in the web app.
+LANGUAGE_QUALITY = {"en": "stable", "hi": "machine-translated", "ta": "experimental"}
 # Unicode ranges of each target script; a translation must be mostly written in its own script.
 SCRIPT_RANGES = {"hi": ("ऀ", "ॿ"), "ta": ("஀", "௿")}
 SCRIPT_MIN_SHARE = 0.5  # share of letters that must be in the target script

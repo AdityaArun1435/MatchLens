@@ -41,7 +41,7 @@ def test_recap_in_hindi_and_tamil(client, mid, lang):
     assert r.status_code == 200
     body = r.json()
     assert body["language"] == lang and body["source_recap"]["title"] == GOOD["title"]
-    assert [p["cites"] for p in body["recap"]["paragraphs"]] == [p["cites"] for p in GOOD["paragraphs"]]
+    assert [p["cites"] for p in body["recap"]["paragraphs"]] == [p["cites"] for p in GOOD["paragraphs"]] + [["m_010"]]
     assert all(p["language"] == lang for p in body["recap"]["paragraphs"])
     tr = body["report"]["translation"]
     assert tr["language"] == lang and tr["names_missing"] == [] and all(u["status"] == "translated" for u in tr["units"])
@@ -61,8 +61,8 @@ def test_a_failed_paragraph_is_returned_in_english_with_its_note(client, mid):
     use("hi", mid, override=lambda source, attempt: "शब्द 99" if "shootout" in source else None)
     body = client.post(f"/matches/{mid}/recap", json={"language": "hi"}).json()
     last = body["recap"]["paragraphs"][-1]
-    assert last["language"] == "en" and last["text"] == GOOD["paragraphs"][-1]["text"] and "Shown in English" in last["note"]
-    assert len(body["recap"]["paragraphs"]) == len(GOOD["paragraphs"])
+    assert last["language"] == "en" and last["text"] == body["source_recap"]["paragraphs"][-1]["text"] and "Shown in English" in last["note"]
+    assert len(body["recap"]["paragraphs"]) == len(GOOD["paragraphs"]) + 1
     assert body["report"]["translation"]["units"][-1]["status"] == "english_fallback"
 
 

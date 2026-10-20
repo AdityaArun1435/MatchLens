@@ -246,6 +246,21 @@ are first drafts, not reviewed: correct them by hand and set `"reviewed": true`.
 translations. The Hindi and Tamil banned and opinion lists in `config.py` (`BANNED_PHRASES`, `OPINION_WORDS`,
 `BANNED_PHRASE_EXEMPT`) are also first drafts marked for review.
 
+### Written shootout paragraph, glossary and quality
+
+- **Shootout paragraph.** The model never sees the shootout. A paragraph per audience is written from the kick list
+  (`matchlens/recap/shootout.py`), cites only the shootout moment, and is translated like any other paragraph.
+- **Banned and opinion lists are in the prompt**, as well as being checked afterwards (`rules.wording_instructions`).
+- **In-play penalties versus shootout kicks.** The data says "penalty in regular time" or "penalty in extra time"; a bare
+  "penalty" or "penalty spot" in play is rejected, and a shootout kick is always "in the shootout".
+- **Repetition and score lines.** A sentence repeated from an earlier paragraph, or a score line such as "France 2-2 France"
+  or one the cited moments do not show, is rejected.
+- **Football glossary** (`data/glossary/hi.json`, `ta.json`): 20 terms with a fixed translation (`use`) and accepted stems
+  (`accept`). When the English source uses a term (patterns in `matchlens/recap/glossary.py`), the translation must contain
+  one of its forms, and the translate prompt lists the fixed forms. First drafts, please review.
+- **Quality.** `config.LANGUAGE_QUALITY` says `en` stable, `hi` machine-translated, `ta` experimental. Every recap and
+  explain response has a `quality` field.
+
 ### What this does not catch
 
 A translation can keep every number and name and still change the meaning (a verb, who did what, "regained" read as

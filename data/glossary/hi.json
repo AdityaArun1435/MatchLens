@@ -1,0 +1,27 @@
+{
+  "language": "hi",
+  "reviewed": false,
+  "note": "First draft written by the model, not a native speaker. 'use' is the form the translator is told to write; 'accept' lists other forms (stems) the checker lets through. Correct by hand and set reviewed to true.",
+  "terms": {
+    "penalty": {"use": "पेनल्टी", "accept": []},
+    "penalty shootout": {"use": "पेनल्टी शूटआउट", "accept": ["शूटआउट"]},
+    "shootout kick": {"use": "किक", "accept": ["पेनल्टी"]},
+    "goalkeeper": {"use": "गोलकीपर", "accept": ["गोलची"]},
+    "save": {"use": "बचाया", "accept": ["बचा"]},
+    "equaliser": {"use": "बराबरी", "accept": ["बराबर"]},
+    "took the lead": {"use": "बढ़त", "accept": ["आगे निकल"]},
+    "regained the lead": {"use": "फिर से बढ़त", "accept": ["दोबारा बढ़त", "बढ़त फिर से", "बढ़त दोबारा", "वापस बढ़त", "बढ़त वापस"]},
+    "reduced the deficit": {"use": "अंतर कम", "accept": ["अंतर को कम", "अंतर घटा", "अंतर कम"]},
+    "extra time": {"use": "अतिरिक्त समय", "accept": []},
+    "stoppage time": {"use": "स्टॉपेज टाइम", "accept": ["इंजरी टाइम"]},
+    "substitution": {"use": "बदलाव", "accept": ["सब्स्टीट्यूशन", "खिलाड़ी बदल", "बदला"]},
+    "big chance": {"use": "बड़ा मौका", "accept": ["बड़ा अवसर"]},
+    "xG": {"use": "xG", "accept": []},
+    "own goal": {"use": "आत्मघाती गोल", "accept": ["सेल्फ गोल"]},
+    "red card": {"use": "रेड कार्ड", "accept": ["लाल कार्ड"]},
+    "second yellow": {"use": "दूसरा येलो कार्ड", "accept": ["दूसरे येलो", "दूसरा येलो", "दूसरा पीला"]},
+    "draw": {"use": "ड्रॉ", "accept": ["बराबरी", "बराबर"]},
+    "won on penalties": {"use": "पेनल्टी शूटआउट में जीत", "accept": ["पेनल्टी पर", "पेनल्टी शूटआउट"]},
+    "momentum": {"use": "मोमेंटम", "accept": ["गति"]}
+  }
+}

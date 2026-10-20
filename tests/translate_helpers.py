@@ -5,6 +5,8 @@ word becomes one filler word, digits and punctuation stay. That is enough to exe
 """
 import re
 
+from matchlens.recap import glossary
+
 FILLER = {"hi": "शब्द", "ta": "சொல்"}
 _HI = "कखगघचजटडतनपबमयरलवसह"
 _TA = "கசடதபமயரலவ"
@@ -30,7 +32,9 @@ def fake_translation(source: str, lang: str, names: list[str]) -> str:
         text = re.sub(rf"(?<![^\W\d_]){re.escape(eng)}(?:['’]s)?(?![^\W\d_])", f"\x00{i}\x00", text)
         text = text.replace(f"\x00{i}\x00", nat)
     text = re.sub(r"\btwice\b", "2", text)  # the real prompt asks for digits instead of number words
-    return _WORD.sub(lambda m: m.group() if m.group() == "xG" else FILLER[lang], text)
+    text = _WORD.sub(lambda m: m.group() if m.group() == "xG" else FILLER[lang], text)
+    glossary_forms = [glossary.load_glossary(lang)[t]["use"] for t in glossary.terms_in(source) if t in glossary.load_glossary(lang)]
+    return " ".join([text, *glossary_forms])
 
 
 def _after(user: str, marker: str) -> str:

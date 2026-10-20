@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field
 
+from .. import config
+
 Audience = Literal["analyst", "broadcaster", "fan"]
 Length = Literal["short", "medium"]
 Language = Literal["en", "hi", "ta"]
@@ -102,6 +104,12 @@ class RecapResult(BaseModel):
     cached: bool = False
     source_recap: Recap | None = None  # the validated English recap a translation was made from
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def quality(self) -> str:
+        """How far to trust this language: stable, machine-translated or experimental (config.LANGUAGE_QUALITY)."""
+        return config.LANGUAGE_QUALITY.get(self.language, "stable")
+
 
 class ExplainResult(BaseModel):
     match_id: int
@@ -114,6 +122,12 @@ class ExplainResult(BaseModel):
     generation_seconds: float
     cached: bool = False
     source_explanation: MomentExplanation | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def quality(self) -> str:
+        """How far to trust this language: stable, machine-translated or experimental (config.LANGUAGE_QUALITY)."""
+        return config.LANGUAGE_QUALITY.get(self.language, "stable")
 
 
 def translation_schema() -> dict:

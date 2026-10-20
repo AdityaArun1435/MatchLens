@@ -205,7 +205,7 @@ _KICK_NOUN = r"(?:kick|kicks|penalty|penalties|spot-?kick|attempt|taker|effort)"
 _ORDER = re.compile(
     rf"\b(?:(?P<w>first|opening|second|third|fourth|fifth|sixth|seventh|eighth|1st|2nd|3rd|4th|5th|6th|7th|8th|last|final)\s+(?:(?!(?:one|two|three|four|five|six|seven|eight|\d+)\b)\w+\s+)?(?={_KICK_NOUN}\b)"
     r"|(?P<w2>first|second|third|fourth|fifth|sixth|seventh|eighth)\b(?!\s+(?:half|goal|minute|minutes|time|leg|period|yellow|card|booking|assist|chance|shot|\d))"
-    r"|kick\s+(?P<n>[1-9]))",
+    r"|kick\s+(?P<n>[1-9])(?!\d))",
     re.I,
 )
 _SHOOTOUT_WORDS = re.compile(r"shoot-?out|penalties|\bpens\b|\bkicks?\b|spot-?kick", re.I)
@@ -366,4 +366,82 @@ def _check_taker_outcomes(mentions, clause, kicks) -> list[str]:
         if claimed != scored:
             said, was = ("scored", "was saved or missed") if claimed else ("missed or was saved", "scored")
             errors.append(f"says {name} {said} in the shootout, but kick {number} ({team}, {name}) {was}")
+    return errors
+
+
+# ---- the prompt side of rules 3 and 4, and in-play penalty wording ------------------------------------------
+def wording_instructions(audience: str, language: str = "en") -> str:
+    """The banned and opinion lists for this audience, written into the prompt so the model avoids them up front."""
+    banned = ", ".join(config.BANNED_PHRASES.get(language, ()))
+    lines = [f"Never use these words (outside knowledge, rejected by the checker): {banned}."]
+    if audience not in config.OPINION_ALLOWED_AUDIENCES:
+        opinions = ", ".join(config.OPINION_WORDS.get(language, ()))
+        lines.append(f"Never use these opinion words, and no similar praise or colour words: {opinions}.")
+    return " ".join(lines)
+
+
+_PENALTY = re.compile(r"(?<!\()\bpenalt(?:y|ies)\b(?!\))", re.I)
+_SHOOTOUT_CONTEXT = re.compile(r"shoot-?out|on penalties|\bkicks?\b|spot-?kick|\bpens\b", re.I)
+_IN_PLAY_PENALTY = re.compile(r"\bpenalty in (regular|extra) time\b", re.I)
+
+
+def check_penalty_wording(text: str, cites: list[str], moments: dict[str, Moment]) -> list[str]:
+    """In play a penalty is a "penalty in regular time" or "penalty in extra time"; a shootout kick is "in the shootout"."""
+    periods = {
+        "regular" if m.period <= 2 else "extra"
+        for c in cites
+        if (m := moments.get(c)) and m.type == "goal" and m.stats.get("goal_kind") == "penalty"
+    }
+    errors: list[str] = []
+    for s in sentences(text):
+        if _SHOOTOUT_CONTEXT.search(s) or not _PENALTY.search(s):
+            continue
+        claimed = {m.group(1).lower() for m in _IN_PLAY_PENALTY.finditer(s)}
+        if len(_PENALTY.findall(s)) > len(_IN_PLAY_PENALTY.findall(s)):
+            errors.append(
+                "write an in-play penalty as 'penalty in regular time' or 'penalty in extra time', and a shootout kick as 'in the shootout'"
+            )
+        elif periods and not claimed & periods:
+            errors.append(f"says 'penalty in {sorted(claimed)[0]} time', but the cited penalty goal was in {sorted(periods)[0]} time")
+    return list(dict.fromkeys(errors))
+
+
+# ---- degenerate output: repeated sentences and score lines that are not scores -------------------------------
+def _normal(sentence: str) -> str:
+    return re.sub(r"\W+", " ", sentence.lower()).strip()
+
+
+def repeated_sentences(texts: list[str]) -> dict[int, list[str]]:
+    """Sentences that already appeared in an earlier paragraph: {paragraph index (0-based): errors}."""
+    seen: set[str] = set()
+    errors: dict[int, list[str]] = {}
+    for i, text in enumerate(texts):
+        for s in sentences(text):
+            key = _normal(s)
+            if len(key) > 20 and key in seen:
+                errors.setdefault(i, []).append(f"repeats a sentence from an earlier paragraph: {s!r}; say something new or leave it out")
+            seen.add(key)
+    return errors
+
+
+def check_score_lines(text: str, cites: list[str], moments: dict[str, Moment], meta, summary) -> list[str]:
+    """"Argentina 1-0 France" must be a score the cited moments (or the final result) show, with two different teams."""
+    home, away = meta.home_team, meta.away_team
+    allowed = {tuple(summary.final_score), tuple(summary.score_after_90)}
+    if summary.shootout:
+        sc = summary.shootout["score"]
+        allowed.add((sc[home], sc[away]))
+    for c in cites:
+        if m := moments.get(c):
+            allowed |= {tuple(m.score_before), tuple(m.score_after)}
+    names = "|".join(re.escape(x) for x in (home, away))
+    errors = []
+    for m in re.finditer(rf"({names}) (\d+)-(\d+) ({names})", text):
+        first, a, b, second = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
+        if first == second:
+            errors.append(f"score line {m.group(0)!r} names the same team twice")
+            continue
+        pair = (a, b) if first == home else (b, a)
+        if pair not in allowed:
+            errors.append(f"score line {m.group(0)!r} is not a score shown by the cited moments or the final result")
     return errors
