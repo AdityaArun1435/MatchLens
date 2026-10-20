@@ -27,6 +27,10 @@ async function matchPage(language, viewport, file, { openMoment = true, openRepo
   if (openReport) await page.getByTestId("report-toggle").last().click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(out, file), fullPage: true });
+  if (openReport && file === "match-en.png") {
+    await page.getByTestId("report").last().screenshot({ path: path.join(out, "checked.png") });
+    console.log("saved checked.png");
+  }
   await page.close();
   console.log("saved", file);
 }
