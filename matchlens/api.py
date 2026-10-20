@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import loader, service
+from . import config, loader, service
 from .llm import LLMError, LLMProvider, LLMUnavailable, get_provider
 from .models import Event, MatchSummary, Moment
 from .recap import pipeline
@@ -95,6 +95,17 @@ def _llm_errors(exc: LLMError) -> HTTPException:
     if isinstance(exc, LLMUnavailable):
         return HTTPException(status_code=503, detail=str(exc))
     return HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/health")
+def health(provider: LLMProvider = Depends(provider_dep)) -> dict:
+    """Backend status plus whether the model server answers, so the web app can say so before anyone clicks Generate."""
+    available = bool(provider.is_available()) if hasattr(provider, "is_available") else True
+    return {
+        "status": "ok",
+        "llm": {"provider": config.LLM_PROVIDER, "model": provider.name, "available": available},
+        "quality": config.LANGUAGE_QUALITY,
+    }
 
 
 @app.post("/matches/{match_id}/recap", response_model=RecapResult)

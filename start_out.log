@@ -1,0 +1,59 @@
+WARNING: Ollama is not answering on port 11434. Start the Ollama app (or run 'ollama serve'). The match pages work 
+without it; Generate will say so.
+Backend  -> http://localhost:8000
+Web app  -> http://localhost:3000
+Running. Press Ctrl+C to stop both.
+
+> web@0.1.0 dev
+> next dev --port 3000
+
+▲ Next.js 16.4.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.10:3000
+✓ Ready in 453ms
+✓ Running next.config.ts took 44ms
+
+ GET / 200 in 251ms (next.js: 130ms, application-code: 121ms)
+INFO:     127.0.0.1:58783 - "GET /matches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58783 - "GET /matches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58783 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50979 - "GET /health HTTP/1.1" 200 OK
+ GET / 200 in 48ms (next.js: 1.9ms, application-code: 46ms)
+ GET /match/3869685 200 in 468ms (next.js: 360ms, application-code: 107ms)
+INFO:     127.0.0.1:56005 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58923 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56005 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62174 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62174 - "OPTIONS /matches/3869685/recap HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61445 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62174 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56005 - "POST /matches/3869685/recap HTTP/1.1" 200 OK
+ GET /match/3869685 200 in 64ms (next.js: 14ms, application-code: 50ms)
+INFO:     127.0.0.1:61782 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51858 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51858 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51858 - "OPTIONS /matches/3869685/recap HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64754 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51858 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "POST /matches/3869685/recap HTTP/1.1" 200 OK
+ GET /match/3869685 200 in 78ms (next.js: 13ms, application-code: 66ms)
+INFO:     127.0.0.1:58018 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50060 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57900 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58018 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58018 - "OPTIONS /matches/3869685/recap HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52680 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58018 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57900 - "POST /matches/3869685/recap HTTP/1.1" 200 OK
+ GET / 200 in 42ms (next.js: 1.7ms, application-code: 40ms)
+INFO:     127.0.0.1:49670 - "GET /matches HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49670 - "GET /matches HTTP/1.1" 200 OK
+ GET /match/3869685 200 in 56ms (next.js: 11ms, application-code: 45ms)
+INFO:     127.0.0.1:50138 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55744 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50138 - "GET /matches/3869685/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59601 - "GET /matches/3869685/moments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59601 - "OPTIONS /matches/3869685/recap HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50138 - "POST /matches/3869685/recap HTTP/1.1" 200 OK
