@@ -32,6 +32,9 @@ class Settings:
     af_daily_limit: int = 95
     af_live_daily_limit: int = 70
     af_detail_daily_limit: int = 20
+    # Backfill of old matches only uses what live polling leaves: its own sub-budget, and it stops once the day is this used.
+    af_backfill_daily_limit: int = 45
+    af_backfill_stop_at: int = 60
     af_per_minute_limit: int = 8
     # football-data.org free plan is 10 per minute; we stay well under.
     fd_per_minute_limit: int = 6

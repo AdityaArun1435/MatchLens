@@ -1,5 +1,6 @@
 import type {
   CompetitionRef,
+  DetailStatus,
   Lineup,
   MatchDetail,
   MatchEvent,
@@ -61,6 +62,7 @@ export interface FixtureRow {
   home_score: number | null;
   away_score: number | null;
   updated_at: string;
+  detail_status: Exclude<DetailStatus, "pending"> | null;
   home: TeamRow | null;
   away: TeamRow | null;
   competition: CompetitionRef | null;
@@ -106,6 +108,7 @@ export function toMatchView(f: FixtureRow): MatchView {
     homeScore: useLive ? live.home_goals : f.home_score,
     awayScore: useLive ? live.away_goals : f.away_score,
     state,
+    detailStatus: f.detail_status ?? "pending",
     minute: state === "live" && live ? minuteLabel(live.elapsed, live.extra) : null,
     source: useLive ? "live" : "delayed",
     updatedAt: useLive ? live.updated_at : f.updated_at,

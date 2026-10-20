@@ -79,6 +79,9 @@ class Refresher:
     # --- football-data.org ---------------------------------------------------------------------
     def refresh_fixtures(self, code: str, today: date) -> int:
         body = self.fd.matches(code, today - timedelta(days=FD_WINDOW_BACK_DAYS), today + timedelta(days=FD_WINDOW_FORWARD_DAYS))
+        return self._store_matches(code, body)
+
+    def _store_matches(self, code: str, body: dict) -> int:
         matches = body.get("matches", [])
         comp = {**body["competition"], "code": code}
         season = matches[0].get("season") if matches else None
@@ -174,16 +177,26 @@ class Refresher:
             if fix["af_fixture_id"]:
                 self._step(f"settle {fix['id']}", self._fetch_detail, fix, 60)
 
-    def _fetch_detail(self, fix: dict, ttl_s: int) -> bool:
-        items = self.af.fixture_detail(fix["af_fixture_id"], ttl_s=ttl_s)
+    def _fetch_detail(self, fix: dict, ttl_s: int, category: str = "detail") -> bool:
+        """Fetch events and lineups. A match that is over is marked done, so it is never fetched again."""
+        items = self.af.fixture_detail(fix["af_fixture_id"], ttl_s=ttl_s, category=category)
         if not items:
             return False
-        self.apply_item(fix, items[0], with_lineups=True)
-        return bool(items[0].get("lineups"))
+        item = items[0]
+        self.apply_item(fix, item, with_lineups=True)
+        if item["fixture"]["status"].get("short") in nm.FINAL_STATUS_SHORT:
+            has_data = bool(item.get("lineups")) or bool(item.get("events"))
+            self._mark_detail(fix, "ok" if has_data else "empty")
+        return bool(item.get("lineups"))
+
+    def _mark_detail(self, fix: dict, status: str) -> None:
+        values = {"detail_status": status, "detail_fetched_at": datetime.now(timezone.utc).isoformat()}
+        self.store.update("fixtures", {"id": fix["id"]}, values)
+        fix.update(values)
 
     def fetch_details(self, window: list[dict], now: datetime) -> int:
         """Lineups for matches about to start, running or just finished. One call per match, retried at most every 10 minutes."""
-        eligible = [f for f in window if f["af_fixture_id"] and
+        eligible = [f for f in window if f["af_fixture_id"] and f.get("detail_status") is None and
                     now - timedelta(hours=6) <= parse_ts(f["utc_date"]) <= now + timedelta(minutes=75)]
         have = self.store.fixtures_with_lineups([f["id"] for f in eligible])
         todo = [f for f in eligible if f["id"] not in have][:DETAIL_MAX_PER_TICK]
@@ -196,6 +209,88 @@ class Refresher:
                 self.store.put_cache(marker, "state", {"empty": True}, 1800)
         return len(todo)
 
+    # --- backfill of finished matches ------------------------------------------------------------
+    # The free API-Football plan cannot list fixtures by season or by dates older than yesterday, but it does
+    # answer head-to-head and lookup by id for any season. So an old match is linked through its two team ids
+    # (head-to-head), then fetched once by id. Oldest first; the state lives on the fixture row, so it resumes.
+    def backfill_fd(self) -> bool:
+        """Load every finished match of the current season, one competition per call."""
+        for code in self.settings.tracked:
+            key = f"state:fd_backfill:{code}"
+            if self.store.get_cache(key):
+                continue
+            self._store_matches(code, self.fd.finished_matches(code))
+            self.store.put_cache(key, "state", {"done": True}, 365 * 86400)
+            return True
+        return False
+
+    def backfill_details(self, now: datetime) -> int:
+        if self.store.get_usage("af", day_bucket(now)) >= self.settings.af_backfill_stop_at:
+            self.report["skipped"].append("af backfill: daily headroom reserved for live data")
+            return 0
+        todo = self.store.backfill_candidates(1)
+        if not todo:
+            return 0
+        fix = todo[0]
+        try:
+            if fix["af_fixture_id"] is None and self._link_by_h2h(fix) is None:
+                self._give_up_a_little(fix)
+                return 1
+            self._fetch_detail(fix, ttl_s=30 * 86400, category="backfill")
+        except SourceError as exc:
+            message = str(exc).lower()
+            if "plan" in message or ("http 4" in message and "429" not in message):
+                self._give_up_a_little(fix)  # a permanent refusal for this match must not block the queue
+            raise
+        if fix.get("detail_status") is None:
+            self._give_up_a_little(fix)
+        return 1
+
+    def _give_up_a_little(self, fix: dict) -> None:
+        attempts = (fix.get("map_attempts") or 0) + 1
+        self.store.update("fixtures", {"id": fix["id"]}, {"map_attempts": attempts})
+        fix["map_attempts"] = attempts
+        if attempts >= 2:
+            self._mark_detail(fix, "unavailable")
+
+    def _link_by_h2h(self, fix: dict) -> int | None:
+        league = AF_LEAGUE_BY_FD_ID.get(fix["competition_id"])
+        home_id = self._resolve_af_team(fix.get("home"), league)
+        away_id = self._resolve_af_team(fix.get("away"), league)
+        if not (league and home_id and away_id):
+            return None
+        kickoff = parse_ts(fix["utc_date"])
+        for item in self.af.head_to_head(home_id, away_id):
+            when = datetime.fromtimestamp(item["fixture"]["timestamp"], tz=timezone.utc)
+            if item["league"]["id"] == league and item["teams"]["home"]["id"] == home_id and abs(when - kickoff) <= timedelta(hours=12):
+                self._link(fix, item)
+                return item["fixture"]["id"]
+        return None
+
+    def _resolve_af_team(self, team: dict | None, league: int | None) -> int | None:
+        """API-Football id of one of our teams: stored value, else the league's team list, else a name search."""
+        if not team or not league:
+            return None
+        if team.get("af_team_id"):
+            return team["af_team_id"]
+        marker = f"state:team_unresolved:{team['id']}"
+        if self.store.get_cache(marker):
+            return None
+        found = self._find_team(team, self.af.league_teams(league)) or self._find_team(team, self.af.search_team(nm.norm_name(team.get("short_name") or team["name"])))
+        if found is None:
+            self.store.put_cache(marker, "state", {}, 7 * 86400)
+            return None
+        self.store.update("teams", {"id": team["id"]}, {"af_team_id": found})
+        team["af_team_id"] = found
+        return found
+
+    @staticmethod
+    def _find_team(team: dict, entries: list[dict]) -> int | None:
+        for entry in entries:
+            if nm.team_matches(team, entry["team"]["name"]):
+                return entry["team"]["id"]
+        return None
+
     # --- one tick ------------------------------------------------------------------------------
     def tick(self, now: datetime | None = None) -> dict:
         now = now or datetime.now(timezone.utc)
@@ -206,6 +301,7 @@ class Refresher:
             self._step("fd fixtures", self.refresh_fixtures, codes[minute_of_day % len(codes)], today)
             if now.minute % 3 == 0:
                 self._step("fd standings", self.refresh_standings, codes[(minute_of_day // 3) % len(codes)])
+            self._step("fd backfill", self.backfill_fd)
         if self.settings.api_football_key:
             window = self.store.fixtures_between(now - timedelta(days=1, hours=6), now + timedelta(days=1))
             lives = self.store.live_states([f["id"] for f in window])
@@ -214,6 +310,8 @@ class Refresher:
                 self._step(f"af map {day}", self.map_day, day, window)
             self._step("af live", self.poll_live, window, lives, now)
             self._step("af details", self.fetch_details, window, now)
+            if not any(needs_live(f, lives.get(f["id"]), now) for f in window):
+                self._step("af backfill", self.backfill_details, now)
         self.report["requests"] = {"fd": self.fd.requests_made, "af": self.af.requests_made}
         self.report["af_remaining_quota"] = self.af.remaining_quota
         return self.report

@@ -98,3 +98,21 @@ class Store:
         if keys:
             params["dedupe_key"] = f"not.in.({keys})"
         self._check(self.http.delete(f"{self.base}/events", params=params, headers=self.headers))
+
+    def backfill_candidates(self, limit: int) -> list[dict]:
+        """Oldest finished matches whose events and lineups have not been fetched yet, with team rows embedded."""
+        params = {
+            "select": "*,home:teams!fixtures_home_team_id_fkey(id,name,short_name,tla,af_team_id),"
+                      "away:teams!fixtures_away_team_id_fkey(id,name,short_name,tla,af_team_id)",
+            "status": "eq.FINISHED", "detail_status": "is.null", "order": "utc_date.asc", "limit": str(limit),
+        }
+        return self.select("fixtures", params)
+
+    def detail_counts(self) -> dict:
+        rows = self.select("fixtures", {"select": "detail_status,status"})
+        out: dict = {}
+        for r in rows:
+            if r["status"] == "FINISHED":
+                key = r["detail_status"] or "pending"
+                out[key] = out.get(key, 0) + 1
+        return out
