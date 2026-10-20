@@ -93,7 +93,7 @@ export function MatchView({ matchId }: { matchId: number }) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <RecapPanel matchId={matchId} settings={settings} onSettings={setSettings} byId={byId} onCite={focusMoment} model={health?.llm.model ?? null} />
-        <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
+        <div className="min-w-0">
           {selected && (
             <MomentPanel
               key={selected.id}

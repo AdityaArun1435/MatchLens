@@ -267,6 +267,19 @@ A translation can keep every number and name and still change the meaning (a ver
 "maintained"). Use `--back-translate` and a Hindi or Tamil reader to judge it. Tamil in particular should be labelled
 experimental until someone has reviewed it.
 
+### Coverage, shootout and cache warming
+
+- **Coverage.** Every goal shown to the model must be cited by at least one of its paragraphs; missing goals trigger the
+  retry with the list. A goal still missing after the retry is noted in the report.
+- **The shootout is written, not generated.** Model paragraphs may not cite or mention the shootout (checked); only the
+  paragraph built from the kick list does. "Argentina drew 3-3" is rejected: write "the match ended 3-3".
+- **Show English.** Translated recaps have a per-paragraph and a global "Show English" toggle that displays the checked
+  English source under the translation ("Translated from the checked English text").
+- **Instant cached results.** `GET /matches/{id}/recap?audience=&length=&language=` and `explain?cached_only=true` only read
+  the cache (404 if absent); the web app uses them so a cached combination appears with no Generate click.
+- **`python scripts/warm_cache.py`** pre-generates every recap (3 matches x 3 audiences x 2 lengths x en/hi/ta) and an
+  explanation for every moment with importance >= 0.5. It is resumable (cache hits are skipped) and prints progress.
+
 ## Phase 4: web app
 
 A dark, mobile-friendly Next.js app in `web/` that talks to the local FastAPI backend: match picker, final score and

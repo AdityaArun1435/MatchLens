@@ -13,7 +13,9 @@ Length: {{length}}
 
 Language: {{language_instructions}}
 
-Structure: say what the result was, then the key moments in the order they happened, then how the match ended. Group related moments, for example two goals in quick succession, in one paragraph and cite all of them. If there was a penalty shootout, a separate paragraph about it is added after yours: do not describe its kicks or takers, you may only say in the result paragraph who won it and the shootout score. The title is a short plain headline in the form "Argentina 3-3 France" (team names and the final score only, no player names, no second score; mention the shootout in the text, not the title).
+Structure: say what the result was, then the key moments in the order they happened. Group related moments, for example two goals in quick succession, in one paragraph and cite all of them. Every goal in the data must be cited by at least one of your paragraphs. Do not mention a penalty shootout, its kicks or who won it: if there was one, a separate paragraph about it is added after yours. The title is a short plain headline in the form "Argentina 3-3 France" (team names and the final score only, no player names, no second score).
+
+Result wording: never write "Argentina drew 3-3" or "Argentina and France drew 3-3". Write "the match ended 3-3" (add "after extra time" if the data says so).
 
 Penalties: write a penalty scored in play exactly as "penalty in regular time" or "penalty in extra time" (copy it from "goal kind"). Never write "penalty spot" or a bare "penalty" for an in-play goal.
 

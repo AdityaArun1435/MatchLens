@@ -23,7 +23,7 @@ export default defineConfig({
       url: "http://localhost:8000/health",
       reuseExistingServer: true,
       timeout: 120_000,
-      env: { MATCHLENS_LLM_PROVIDER: "fake", MATCHLENS_GENERATED_DIR: path.join(os.tmpdir(), "matchlens-e2e") },
+      env: { MATCHLENS_LLM_PROVIDER: "fake", MATCHLENS_GENERATED_DIR: path.join(os.tmpdir(), `matchlens-e2e-${Date.now()}`) },
     },
     {
       command: "npm run dev -- --port 3000",

@@ -67,3 +67,24 @@ export function getExplanation(id: number, momentId: string, audience: Audience,
   const q = new URLSearchParams({ audience, language });
   return request<ExplainResult>(`/matches/${id}/moments/${momentId}/explain?${q}`, { signal });
 }
+
+/** Cache-only reads: null when nothing is cached (the server answers 404) or the server cannot be reached. */
+export async function peekRecap(id: number, s: { audience: Audience; length: Length; language: Language }, signal?: AbortSignal) {
+  const q = new URLSearchParams({ audience: s.audience, length: s.length, language: s.language });
+  try {
+    return await request<RecapResult>(`/matches/${id}/recap?${q}`, { signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+export async function peekExplanation(id: number, momentId: string, audience: Audience, language: Language, signal?: AbortSignal) {
+  const q = new URLSearchParams({ audience, language, cached_only: "true" });
+  try {
+    return await request<ExplainResult>(`/matches/${id}/moments/${momentId}/explain?${q}`, { signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    return null;
+  }
+}

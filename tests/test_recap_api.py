@@ -11,6 +11,8 @@ GOOD = {
     "title": "Argentina v France: 3-3, Argentina win 4-2 on penalties",
     "paragraphs": [
         {"text": "Lionel Messi scored a penalty in regular time at 23' to put Argentina 1-0 ahead.", "cites": ["m_001"]},
+        {"text": "Ángel Di María extended the lead at 36'.", "cites": ["m_002"]},
+        {"text": "Lionel Messi scored again at 108', and France equalised at 118'.", "cites": ["m_006", "m_008"]},
         {"text": "Kylian Mbappé scored twice in 94 seconds, at 80' and 81', making it 2-2.", "cites": ["m_003", "m_004", "m_005"]},
     ],
 }
@@ -46,7 +48,7 @@ def test_recap_returns_recap_report_model_and_timing(client, mid):
     assert r.status_code == 200
     body = r.json()
     assert body["model"] == "fake:1b" and body["audience"] == "fan" and body["generation_seconds"] >= 0
-    assert body["report"]["method"] == "llm" and body["report"]["attempts"][0]["items_valid"] == 2
+    assert body["report"]["method"] == "llm" and body["report"]["attempts"][0]["items_valid"] == 4
     assert [p["cites"] for p in body["recap"]["paragraphs"]][0] == ["m_001"]
     assert "Fan" in provider.calls[0]["user"]
     again = client.post(f"/matches/{mid}/recap", json={"audience": "fan", "length": "short"}).json()

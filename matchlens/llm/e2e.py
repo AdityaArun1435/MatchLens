@@ -21,6 +21,10 @@ RECAP = {
             "cites": ["m_001"],
         },
         {
+            "text": "Ángel Di María extended the lead at 36'. The score was Argentina 2-0 France.",
+            "cites": ["m_002"],
+        },
+        {
             "text": "France reduced the deficit after Kylian Mbappé scored a penalty in regular time at 80'. Mbappé levelled the score at 81'. The score was Argentina 2-2 France.",
             "cites": ["m_003", "m_004"],
         },

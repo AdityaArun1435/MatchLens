@@ -2,7 +2,7 @@
 
 import { Lightbulb, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { getExplanation } from "@/lib/api";
+import { getExplanation, peekExplanation } from "@/lib/api";
 import { MOMENT_META } from "@/lib/format";
 import type { ExplainResult, Moment } from "@/lib/types";
 import { ErrorNotice, QualityBadge, Spinner } from "./Bits";
@@ -78,6 +78,17 @@ export function MomentPanel({
   const [error, setError] = useState<{ key: string; err: unknown } | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
+
+  // An explanation that is already cached for these settings is shown without a click.
+  useEffect(() => {
+    if (results[key]) return;
+    const ctl = new AbortController();
+    peekExplanation(matchId, moment.id, settings.audience, settings.language, ctl.signal)
+      .then((hit) => hit && setResults((r) => ({ ...r, [key]: hit })))
+      .catch(() => undefined);
+    return () => ctl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, matchId]);
 
   async function explain() {
     abort.current?.abort();

@@ -1,10 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import type { Moment, TimelinePoint } from "@/lib/types";
 
-const W = 800;
-const H = 290;
+const WIDE = { W: 800, H: 290 };
+const NARROW = { W: 640, H: 400 };
+const QUERY = "(max-width: 639px)";
+
+/** True on phone widths, where the chart gets a fixed readable width inside a horizontal scroller. */
+function useNarrow(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(QUERY);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(QUERY).matches,
+    () => false,
+  );
+}
 const PAD = { l: 42, r: 18, t: 20, b: 34 };
 const PERIOD_LABEL: Record<number, string> = { 2: "2nd half", 3: "Extra time", 4: "ET 2nd half" };
 
@@ -30,6 +44,8 @@ export function XgChart({
   onSelect: (id: string) => void;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const narrow = useNarrow();
+  const { W, H } = narrow ? NARROW : WIDE;
   const n = timeline.length;
   const geometry = useMemo(() => {
     const maxV = niceMax(Math.max(0.5, ...timeline.flatMap((p) => [p.cumulative_xg[home] ?? 0, p.cumulative_xg[away] ?? 0])) * 1.05);
@@ -38,7 +54,7 @@ export function XgChart({
     const line = (team: string) => timeline.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.cumulative_xg[team] ?? 0).toFixed(1)}`).join(" ");
     const area = (team: string) => `${line(team)} L${x(n - 1).toFixed(1)},${y(0)} L${x(0).toFixed(1)},${y(0)} Z`;
     const ticks: { i: number; label: string }[] = [];
-    for (const m of [0, 15, 30, 45, 60, 75, 90, 105, 120]) {
+    for (const m of narrow ? [0, 30, 60, 90, 120] : [0, 15, 30, 45, 60, 75, 90, 105, 120]) {
       const i = timeline.findIndex((p) => p.minute === m);
       if (i >= 0) ticks.push({ i, label: `${m}'` });
     }
@@ -48,7 +64,7 @@ export function XgChart({
     });
     const yTicks = Array.from({ length: 5 }, (_, k) => (maxV / 4) * k);
     return { maxV, x, y, line, area, ticks, dividers, yTicks };
-  }, [timeline, home, away, n]);
+  }, [timeline, home, away, n, W, H, narrow]);
 
   const markers = goals
     .map((g) => {
@@ -75,9 +91,11 @@ export function XgChart({
         <span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-away" />{away} <b className="display text-lg">{(timeline[n - 1]?.cumulative_xg[away] ?? 0).toFixed(2)}</b></span>
         <span className="ml-auto text-xs text-muted">cumulative xG, dots are goals</span>
       </div>
+      <div className="overflow-x-auto" data-testid="xg-scroll">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-pan-y select-none"
+        style={narrow ? { minWidth: W } : undefined}
         role="img"
         aria-label={`Cumulative expected goals for ${home} and ${away} through the match, with goals marked`}
         onPointerMove={onMove}
@@ -134,6 +152,7 @@ export function XgChart({
           );
         })}
       </svg>
+      </div>
       {at && (
         <div
           className="pointer-events-none absolute top-8 z-10 rounded-lg border border-line bg-panel2/95 px-3 py-2 text-xs shadow-lg"

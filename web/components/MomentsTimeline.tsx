@@ -63,6 +63,7 @@ export function MomentsTimeline({
       {moments.length === 0 ? (
         <p className="rounded-lg border border-line p-4 text-sm text-muted">No moments at this importance. Lower the slider.</p>
       ) : (
+        <div className="max-h-[min(70vh,720px)] overflow-y-auto pr-1" data-testid="moments-scroll">
         <ol ref={listRef} className="relative space-y-1.5 before:absolute before:bottom-3 before:left-[66px] before:top-3 before:w-px before:bg-line">
           {moments.map((m) => {
             const selected = m.id === selectedId;
@@ -100,6 +101,7 @@ export function MomentsTimeline({
             );
           })}
         </ol>
+        </div>
       )}
     </section>
   );
