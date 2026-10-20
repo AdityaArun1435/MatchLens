@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "screenshots": "node e2e/screenshots.mjs"
+    "screenshots": "node e2e/screenshots.mjs",
+    "record:live": "node e2e/record_live.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.60.0",

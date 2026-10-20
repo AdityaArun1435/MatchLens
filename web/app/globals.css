@@ -65,6 +65,38 @@ body {
   animation: pulse-ring 1.1s ease-out 2;
 }
 
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+    background-color: rgba(52, 211, 153, 0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    background-color: transparent;
+  }
+}
+
+.pop-in {
+  animation: pop-in 0.7s ease-out;
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.caption-in {
+  animation: caption-in 0.35s ease-out;
+}
+
 @keyframes shimmer {
   0% {
     background-position: -400px 0;

@@ -150,7 +150,7 @@ def _check_won(sentence, hit, teams, home, away, summary) -> list[str]:
     if passive:
         team = next((t for t in teams if re.search(rf"\bby\s+{re.escape(t)}", sentence[hit.end():])), None)
     shootout = summary.shootout
-    if re.search(r"shoot-?out|penalties|\bpens\b|penalty", sentence, re.I):
+    if re.search(r"shoot-?out|on penalties|\bpens\b", sentence, re.I):  # a bare "penalty" is an in-play penalty now
         if shootout is None:
             return [f"says '{hit.group(0)}' in a penalty shootout, but there was no shootout"]
         if team and team != shootout["winner"]:

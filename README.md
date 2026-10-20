@@ -1,5 +1,10 @@
 # MatchLens
 
+![Live replay of the 2022 World Cup final through Mbappé's goals at 80' and 81'](docs/screenshots/live.gif)
+
+*Live replay (30x) of the 2022 final from the 79th minute: the clock, the xG chart drawing in, the captions, and moments appearing as they become detectable.*
+
+
 Local-only football match intelligence.
 
 * **Phase 1** (data layer): loads StatsBomb open data, normalises the events, detects
@@ -304,6 +309,26 @@ cd web; npm run screenshots   # regenerates docs/screenshots with the real model
 First time: `cd web; npm install; npx playwright install chromium`. A recap takes about 30 seconds the first time (Hindi
 and Tamil longer) and is instant afterwards. If Ollama is not running the page says so. `GET /health` reports the model
 and `MATCHLENS_LLM_PROVIDER=fake` selects the canned provider used by the browser test.
+
+## Phase 5: live replay
+
+`WS /matches/{id}/live?speed=10&start=60` streams the match in order on a compressed clock (speed 1, 10, 30 or 60; breaks and
+the stoppage-time overlap between periods are cut out). Messages: `hello`, `tick` (clock, period, score), `event` (shots, subs,
+cards, period starts and ends), `score`, `moment`, `catchup` (after a seek), `end`. Commands: `pause`, `resume`,
+`{"cmd":"speed","value":30}`, `{"cmd":"seek","minute":60}` or `{"cmd":"seek","t":1800}`, `restart`.
+
+- **Incremental detection** (`matchlens/incremental.py`) only uses events up to the clock. A moment is released when nothing
+  later can change it: goals, big chances and cards at once; a quick response about five minutes after the last goal; a
+  substitution when its ten-minute window has been played or the period ends; a momentum swing when the leading run has ended;
+  the shootout when it ends. The tests prove no moment is released before its last evidence event has been streamed and that
+  the released set equals the batch detector's output on all three matches. Moment ids are copied from the batch run as labels
+  only.
+- **Captions.** A moment with importance >= 0.6 gets a one-line caption built from its data, instantly. If a cached explanation
+  exists for the audience and language it is shown under the caption; replay never asks the model for one.
+- **Web app.** "Watch live" on the match page: scoreboard with clock and period (the result is hidden), speed buttons, pause,
+  restart, a scrubber, the xG chart drawing in, moments popping into the list, a ticker of recent events, and at full time a
+  "Read the recap" button that opens the cached recap. Live replay needs the backend only, not Ollama.
+- `npm run record:live` in `web/` re-records `docs/screenshots/live.gif`.
 
 ## Attribution
 

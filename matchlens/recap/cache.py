@@ -15,7 +15,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def cache_file(kind: str, match_id: int, model: str, **parts: object) -> Path:
-    key = {"v": PIPELINE_VERSION, "kind": kind, "match": match_id, "model": model, "prompts": prompts.prompt_hash(), **parts}
+    key = {"v": PIPELINE_VERSION, "kind": kind, "match": match_id, "model": model, "prompts": prompts.prompt_hash("explain" if kind.startswith("explain") else "recap"), **parts}
     digest = hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode()).hexdigest()[:12]
     safe_model = re.sub(r"[^A-Za-z0-9._-]+", "_", model)  # "qwen3:8b" contains ':', illegal in Windows file names
     label = "_".join(str(v) for v in parts.values() if isinstance(v, str))

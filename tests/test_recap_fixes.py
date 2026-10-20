@@ -266,3 +266,10 @@ def test_the_written_shootout_paragraph_is_validated_and_there_is_no_warning(mat
 
     _, report = run_recap(match, "fan", "medium", "en", FakeProvider([GOOD]))
     assert not any("WARNING" in n for n in report.notes)
+
+
+def test_won_in_a_sentence_with_an_in_play_penalty_is_not_a_shootout_claim(match):
+    v = Validator(match, build_context(match, min_importance=0.0))
+    assert v.check_score_verbs("A won 2-1 after a penalty in regular time.", ["m_005"]) == []
+    assert any("no shootout" in e for e in rules.check_score_verbs(
+        "B won the shootout.", ["m_005"], v.ctx.moments, match.moments, match.meta, type("S", (), {"shootout": None, "final_score": (2, 1), "score_after_90": (2, 1)})()))

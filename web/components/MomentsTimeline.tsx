@@ -21,6 +21,7 @@ export function MomentsTimeline({
   highlightId,
   home,
   onSelect,
+  animate = false,
 }: {
   moments: Moment[];
   total: number;
@@ -30,6 +31,8 @@ export function MomentsTimeline({
   highlightId: string | null;
   home: string;
   onSelect: (id: string) => void;
+  /** Live replay: new items slide in. */
+  animate?: boolean;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
 
@@ -69,7 +72,7 @@ export function MomentsTimeline({
             const selected = m.id === selectedId;
             const flash = m.id === highlightId;
             return (
-              <li key={m.id} data-moment-id={m.id} data-testid={`moment-${m.id}`} className={flash ? "flash rounded-xl" : "rounded-xl"}>
+              <li key={m.id} data-moment-id={m.id} data-testid={`moment-${m.id}`} className={`${flash ? "flash " : ""}${animate ? "pop-in " : ""}rounded-xl`} data-moment-type={m.type}>
                 <button
                   type="button"
                   onClick={() => onSelect(m.id)}
