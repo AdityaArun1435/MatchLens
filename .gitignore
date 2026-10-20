@@ -19,3 +19,8 @@ recaps*.md
 *.log
 web/test-results/
 web/playwright-report/
+
+# secrets
+.env
+.env.local
+.env.*.local
