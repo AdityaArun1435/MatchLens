@@ -14,6 +14,10 @@
 |---|---|---|
 | ![Match page, English](docs/screenshots/match-en.png) | ![Tamil recap](docs/screenshots/match-ta.png) | ![The validation report](docs/screenshots/checked.png) |
 
+## Live site (in progress)
+
+MatchLens is becoming a live football site on Vercel and Supabase: today's matches, live scores, fixtures, tables, lineups and events. Visitors only read from our own database; a scheduled job refreshes it within the free API limits. See [docs/live_site.md](docs/live_site.md) and [docs/data_sources.md](docs/data_sources.md). The matches below are kept under `/classic`.
+
 ## Why it's different
 
 - **The LLM never sees raw data.** Plain Python detects the moments (goals, big chances, cards, momentum swings, substitution impact, quick responses, the shootout). The model gets only a short text rendering of those moments and the match summary.
