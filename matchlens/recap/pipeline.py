@@ -84,7 +84,7 @@ def _call(provider: LLMProvider, system: str, user: str, schema: dict, attempt_n
 
 
 # ---- recap -----------------------------------------------------------------------------------------
-def _recap_attempt(data, validator: Validator, attempt_no: int) -> _Attempt:
+def _recap_attempt(data, validator: Validator, attempt_no: int, required: list | None = None) -> _Attempt:
     try:
         raw = _RawRecap.model_validate(data)
     except ValidationError as exc:
@@ -99,13 +99,17 @@ def _recap_attempt(data, validator: Validator, attempt_no: int) -> _Attempt:
         text, changed = strip_ids(p.text)
         if changed:
             att.notes.append(f"paragraph {i}: removed moment ids written inside the text")
-        errs = validator.check_paragraph(text, p.cites)
+        errs = validator.check_paragraph(text, p.cites) + rules.check_no_shootout(text, p.cites, validator.match.moments)
         att.items.append((i, text, p.cites, errs))
         errors += [f"Paragraph {i}: {e}" for e in errs]
     for idx, repeats in rules.repeated_sentences([text for _, text, _, _ in att.items]).items():
         number, text, cites, errs = att.items[idx]
         att.items[idx] = (number, text, cites, errs + repeats)
         errors += [f"Paragraph {number}: {e}" for e in repeats]
+    if required:
+        cited = {c for _, _, cites, errs in att.items if not errs for c in cites}
+        if missing := rules.missing_goals(cited, required):
+            errors.append(rules.coverage_error(missing))
     att.report.items_valid = len(att.valid)
     att.report.errors = errors
     return att
@@ -132,6 +136,7 @@ def run_recap(
         return fallback_recap(match, length, cutoff), report
 
     validator = Validator(match, ctx, audience, language)
+    required = [m for m in ctx.moments.values() if m.type == "goal"]
     lo_hi = config.PARAGRAPHS_PER_LENGTH[length]
     system = prompts.load("system_base")
     user = prompts.render(
@@ -151,7 +156,7 @@ def run_recap(
     prompt = user
     for n in range(1, MAX_ATTEMPTS + 1):
         data, failed = _call(provider, system, prompt, schema, n)
-        att = _Attempt(failed) if failed else _recap_attempt(data, validator, n)
+        att = _Attempt(failed) if failed else _recap_attempt(data, validator, n, required)
         attempts.append(att)
         report.attempts.append(att.report)
         report.notes += att.notes
@@ -172,9 +177,14 @@ def run_recap(
     if best.title_errors or not title:
         title, report.title_replaced = fallback_title(match), True
     paragraphs = [RecapParagraph(text=t, cites=c) for _, t, c, _ in best.valid]
+    if missing := rules.missing_goals({c for p in paragraphs for c in p.cites}, required):
+        report.notes.append("not covered after the retry: " + ", ".join(f"{g.id} ({g.clock_label})" for g in missing))
     if (shootout := shootout_paragraph(match, audience)) is not None:
         paragraphs.append(shootout)
         report.notes.append("the shootout paragraph was written from the kick list, not by the model")
+        full = Validator(match, build_context(match, min_importance=0.0), audience)
+        if problems := full.check_paragraph(shootout.text, shootout.cites):
+            report.notes.append("WARNING: the written shootout paragraph failed validation: " + "; ".join(problems))
     return Recap(title=title, paragraphs=paragraphs), report
 
 
@@ -245,6 +255,17 @@ def _recap_path(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider)
         "recap", match.meta.match_id, provider.name,
         audience=req.audience, length=req.length, language=req.language, cutoff=config.RECAP_MIN_IMPORTANCE, **extra,
     )
+
+
+def peek_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -> RecapResult | None:
+    """The cached recap for these settings, or None. Never calls the model."""
+    hit = cache.read(_recap_path(match, req, provider), RecapResult)
+    return hit.model_copy(update={"cached": True}) if hit else None
+
+
+def peek_explanation(match: ProcessedMatch, moment_id: str, audience: str, language: str, provider: LLMProvider) -> ExplainResult | None:
+    hit = cache.read(_explain_path(match, moment_id, audience, language, provider), ExplainResult)
+    return hit.model_copy(update={"cached": True}) if hit else None
 
 
 def get_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -> RecapResult:

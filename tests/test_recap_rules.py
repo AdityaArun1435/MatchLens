@@ -37,7 +37,7 @@ def validator(match, ctx, audience="analyst"):
         ("Alan Archer levelled at 26', then A went ahead at 86'.", ["m_002", "m_005"]),
         ("B won the shootout 1-0.", ["m_006"]),
         ("A won 2-1 in normal time.", ["m_005"]),
-        ("A and B drew 1-1 at 26'.", ["m_002"]),
+        ("It drew 1-1 at 26'.", ["m_002"]),
         ("Dan Dale won a penalty.", ["m_006"]),
     ],
 )
@@ -54,8 +54,9 @@ def test_true_score_claims_pass(match, ctx, text, cites):
         ("A took the lead.", ["m_004"], "no goal moment is cited"),
         ("A won the shootout.", ["m_006"], "B won it"),
         ("A won 1-1.", ["m_002"], "level score"),
-        ("A and B drew 2-1.", ["m_005"], "not level"),
-        ("A and B drew.", ["m_005"], "not level at 90"),
+        ("It drew 2-1.", ["m_005"], "not level"),
+        ("A and B drew 1-1.", ["m_002"], "the match ended X-X"),
+        ("It drew.", ["m_005"], "not level at 90"),
     ],
 )
 def test_false_score_claims_fail(match, ctx, text, cites, expect):

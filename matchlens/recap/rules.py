@@ -170,7 +170,9 @@ def _scores(sentence: str) -> list[tuple[int, int]]:
     return [(int(a), int(b)) for a, b in _SCORE.findall(sentence)]
 
 
-def _check_drew(sentence, hit, summary) -> list[str]:
+def _check_drew(sentence, hit, summary, teams) -> list[str]:
+    if hit.group(0).lower() == "drew" and (team := team_near(sentence, hit.start(), teams)):
+        return [f"says '{team} ... drew': with a team as the subject write 'the match ended X-X' (for example 'the match ended 3-3 after extra time') instead"]
     scores = _scores(sentence)
     if scores:
         bad = [f"{a}-{b}" for a, b in scores if a != b]
@@ -192,7 +194,7 @@ def check_score_verbs(text: str, cites: list[str], moments: dict[str, Moment], a
         for hit in _WON.finditer(s):
             errors += _check_won(s, hit, teams, home, away, summary)
         for hit in _DREW.finditer(s):
-            errors += _check_drew(s, hit, summary)
+            errors += _check_drew(s, hit, summary, teams)
     return errors
 
 
@@ -445,3 +447,26 @@ def check_score_lines(text: str, cites: list[str], moments: dict[str, Moment], m
         if pair not in allowed:
             errors.append(f"score line {m.group(0)!r} is not a score shown by the cited moments or the final result")
     return errors
+
+
+# ---- the shootout belongs to the written paragraph only; every goal must be cited ----------------------------
+_SHOOTOUT_MENTION = re.compile(r"shoot-?out|on penalties|\bpenalties\b|spot-?kicks?|\bkicks?\b|\bpens\b", re.I)
+
+
+def check_no_shootout(text: str, cites: list[str], all_moments: list[Moment]) -> list[str]:
+    """Model paragraphs may not cite the shootout moment or talk about the shootout: its paragraph is written from the kicks."""
+    errors = []
+    if any(m.type == "penalty_shootout" and m.id in cites for m in all_moments):
+        errors.append("may not cite the shootout moment: its paragraph is added separately")
+    if _SHOOTOUT_MENTION.search(text):
+        errors.append("may not mention the penalty shootout or its kicks: a separate paragraph about it is added after yours")
+    return errors
+
+
+def missing_goals(cited: set[str], required: list[Moment]) -> list[Moment]:
+    return [g for g in required if g.id not in cited]
+
+
+def coverage_error(missing: list[Moment]) -> str:
+    listing = "; ".join(f"{g.id} ({g.clock_label}: {g.headline})" for g in missing)
+    return f"Coverage: no paragraph cites {listing}. Every goal must be cited by at least one paragraph"

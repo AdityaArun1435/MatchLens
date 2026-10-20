@@ -267,6 +267,44 @@ A translation can keep every number and name and still change the meaning (a ver
 "maintained"). Use `--back-translate` and a Hindi or Tamil reader to judge it. Tamil in particular should be labelled
 experimental until someone has reviewed it.
 
+### Coverage, shootout and cache warming
+
+- **Coverage.** Every goal shown to the model must be cited by at least one of its paragraphs; missing goals trigger the
+  retry with the list. A goal still missing after the retry is noted in the report.
+- **The shootout is written, not generated.** Model paragraphs may not cite or mention the shootout (checked); only the
+  paragraph built from the kick list does. "Argentina drew 3-3" is rejected: write "the match ended 3-3".
+- **Show English.** Translated recaps have a per-paragraph and a global "Show English" toggle that displays the checked
+  English source under the translation ("Translated from the checked English text").
+- **Instant cached results.** `GET /matches/{id}/recap?audience=&length=&language=` and `explain?cached_only=true` only read
+  the cache (404 if absent); the web app uses them so a cached combination appears with no Generate click.
+- **`python scripts/warm_cache.py`** pre-generates every recap (3 matches x 3 audiences x 2 lengths x en/hi/ta) and an
+  explanation for every moment with importance >= 0.5. It is resumable (cache hits are skipped) and prints progress.
+
+## Phase 4: web app
+
+A dark, mobile-friendly Next.js app in `web/` that talks to the local FastAPI backend: match picker, final score and
+shootout result, xG timeline with goal markers, moments timeline with an importance slider, a moment side panel with
+"Explain", and a recap panel (audience, language EN/HI/TA with a quality badge, length). Every recap paragraph shows chips
+for the moments it cites (click to jump to and highlight the moment), and **How was this checked?** shows the validation
+report: attempts and their errors, retries, dropped paragraphs, English fallbacks, model and time.
+
+![Match page, English](docs/screenshots/match-en.png)
+![Match page, Hindi](docs/screenshots/match-hi.png)
+![Match page, Tamil](docs/screenshots/match-ta.png)
+
+More: [match picker](docs/screenshots/picker.png), [phone width](docs/screenshots/match-mobile-en.png).
+
+```powershell
+.\start.ps1            # backend on :8000 and web app on :3000 (needs Ollama for Generate)
+.\start.ps1 -Fake      # canned model for the 2022 final, no Ollama needed
+cd web; npm run test:e2e      # Playwright smoke test (starts both servers with the fake model)
+cd web; npm run screenshots   # regenerates docs/screenshots with the real model's cached recaps
+```
+
+First time: `cd web; npm install; npx playwright install chromium`. A recap takes about 30 seconds the first time (Hindi
+and Tamil longer) and is instant afterwards. If Ollama is not running the page says so. `GET /health` reports the model
+and `MATCHLENS_LLM_PROVIDER=fake` selects the canned provider used by the browser test.
+
 ## Attribution
 
 Data: **StatsBomb Open Data**, https://github.com/statsbomb/open-data. Used under the StatsBomb Public Data User

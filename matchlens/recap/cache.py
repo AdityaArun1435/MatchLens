@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 from .. import config
 from . import prompts
 
-PIPELINE_VERSION = 2  # bump when validation or context logic changes in a way that alters outputs
+PIPELINE_VERSION = 4  # bump when validation or context logic changes in a way that alters outputs
 T = TypeVar("T", bound=BaseModel)
 
 

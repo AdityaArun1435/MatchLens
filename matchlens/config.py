@@ -55,11 +55,11 @@ DISPLAY_NAME_OVERRIDES: dict[int | str, str] = {
 import os  # noqa: E402
 
 PROMPTS_DIR = ROOT / "prompts"
-GENERATED_DIR = ROOT / "data" / "generated"
+GENERATED_DIR = Path(os.environ.get("MATCHLENS_GENERATED_DIR", ROOT / "data" / "generated"))
 NAMES_DIR = ROOT / "data" / "names"  # {lang}.json name maps, committed so they can be corrected by hand
 GLOSSARY_DIR = ROOT / "data" / "glossary"  # {lang}.json fixed football terms, committed, edit by hand
 
-LLM_PROVIDER = os.environ.get("MATCHLENS_LLM_PROVIDER", "ollama")  # "ollama"; add other providers in llm/factory.py
+LLM_PROVIDER = os.environ.get("MATCHLENS_LLM_PROVIDER", "ollama")  # "ollama" or "fake" (browser tests); more in llm/factory.py
 OLLAMA_URL = os.environ.get("MATCHLENS_OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("MATCHLENS_OLLAMA_MODEL", "qwen3:8b")
 LLM_TEMPERATURE = 0.2

@@ -216,3 +216,53 @@ def test_score_lines_must_be_real_scores_of_two_different_teams(match):
     assert v.check_text("A 1-1 B at 26'.", ["m_002"]) == []
     assert any("same team twice" in e for e in v.check_text("A 1-1 A at 26'.", ["m_002"]))
     assert any("not a score shown" in e for e in v.check_text("B 3-0 A at 26'.", ["m_002"]))
+
+
+# ---- coverage, no shootout in model text ------------------------------------------------------------------
+def test_every_goal_must_be_cited_or_the_retry_lists_the_missing_ones(match):
+    from matchlens.recap.pipeline import run_recap
+
+    partial = {"title": GOOD["title"], "paragraphs": GOOD["paragraphs"][:1] + GOOD["paragraphs"][2:]}  # no paragraph cites m_002 and m_005
+    recap, report = run_recap(match, "analyst", "medium", "en", FakeProvider([partial, GOOD]))
+    assert report.retried and any(e.startswith("Coverage: no paragraph cites m_002") and "m_005" in e for e in report.attempts[0].errors)
+    assert not report.notes or not any("not covered" in n for n in report.notes)
+    assert {c for p in recap.paragraphs for c in p.cites} >= {"m_001", "m_002", "m_005", "m_006"}
+
+
+def test_a_goal_still_uncovered_after_the_retry_is_noted_not_hidden(match):
+    from matchlens.recap.pipeline import run_recap
+
+    partial = {"title": GOOD["title"], "paragraphs": GOOD["paragraphs"][:1]}
+    _, report = run_recap(match, "analyst", "medium", "en", FakeProvider([partial]))
+    assert any(n.startswith("not covered after the retry") and "m_002" in n for n in report.notes)
+
+
+@pytest.mark.parametrize(
+    "text, cites",
+    [
+        ("B took the lead through Ben Brook at 11' and later won on penalties.", ["m_001"]),
+        ("B took the lead through Ben Brook at 11'. The shootout went to B.", ["m_001"]),
+        ("Cal Cross took the first kick.", ["m_001"]),
+    ],
+)
+def test_model_paragraphs_may_not_mention_the_shootout(match, text, cites):
+    from matchlens.recap.pipeline import run_recap
+
+    bad = {"title": GOOD["title"], "paragraphs": [{"text": text, "cites": cites}, *GOOD["paragraphs"][1:]]}
+    _, report = run_recap(match, "analyst", "medium", "en", FakeProvider([bad, GOOD]))
+    assert report.retried and any("may not mention the penalty shootout" in e for e in report.attempts[0].errors)
+
+
+def test_model_paragraphs_may_not_cite_the_shootout_moment(match):
+    from matchlens.recap.pipeline import run_recap
+
+    bad = {"title": GOOD["title"], "paragraphs": [{"text": "B took the lead through Ben Brook at 11'.", "cites": ["m_001", "m_006"]}, *GOOD["paragraphs"][1:]]}
+    _, report = run_recap(match, "analyst", "medium", "en", FakeProvider([bad, GOOD]))
+    assert any("m_006" in e for e in report.attempts[0].errors)
+
+
+def test_the_written_shootout_paragraph_is_validated_and_there_is_no_warning(match):
+    from matchlens.recap.pipeline import run_recap
+
+    _, report = run_recap(match, "fan", "medium", "en", FakeProvider([GOOD]))
+    assert not any("WARNING" in n for n in report.notes)

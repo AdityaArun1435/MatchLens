@@ -4,11 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import loader, service
+from . import config, loader, service
 from .llm import LLMError, LLMProvider, LLMUnavailable, get_provider
 from .models import Event, MatchSummary, Moment
 from .recap import pipeline
-from .recap.models import Audience, ExplainResult, Language, RecapRequest, RecapResult
+from .recap.models import Audience, ExplainResult, Language, Length, RecapRequest, RecapResult
 
 
 @asynccontextmanager
@@ -97,6 +97,32 @@ def _llm_errors(exc: LLMError) -> HTTPException:
     return HTTPException(status_code=502, detail=str(exc))
 
 
+@app.get("/health")
+def health(provider: LLMProvider = Depends(provider_dep)) -> dict:
+    """Backend status plus whether the model server answers, so the web app can say so before anyone clicks Generate."""
+    available = bool(provider.is_available()) if hasattr(provider, "is_available") else True
+    return {
+        "status": "ok",
+        "llm": {"provider": config.LLM_PROVIDER, "model": provider.name, "available": available},
+        "quality": config.LANGUAGE_QUALITY,
+    }
+
+
+@app.get("/matches/{match_id}/recap", response_model=RecapResult)
+def cached_recap(
+    match_id: int,
+    audience: Audience = "analyst",
+    length: Length = "medium",
+    language: Language = "en",
+    provider: LLMProvider = Depends(provider_dep),
+) -> RecapResult:
+    """The recap if it is already cached, else 404. Never starts a generation, so the web app can show it instantly."""
+    hit = pipeline.peek_recap(_match(match_id), RecapRequest(audience=audience, length=length, language=language), provider)
+    if hit is None:
+        raise HTTPException(status_code=404, detail="not cached")
+    return hit
+
+
 @app.post("/matches/{match_id}/recap", response_model=RecapResult)
 def make_recap(match_id: int, req: RecapRequest | None = None, provider: LLMProvider = Depends(provider_dep)) -> RecapResult:
     """Recap built only from the match summary and moments; the response includes the validation report."""
@@ -114,11 +140,17 @@ def explain_moment(
     audience: Audience = "analyst",
     language: Language = "en",
     refresh: bool = False,
+    cached_only: bool = False,
     provider: LLMProvider = Depends(provider_dep),
 ) -> ExplainResult:
     match = _match(match_id)
     if moment_id not in {m.id for m in match.moments}:
         raise HTTPException(status_code=404, detail=f"match {match_id} has no moment {moment_id}")
+    if cached_only:  # never generates: 404 when this explanation has not been made yet
+        hit = pipeline.peek_explanation(match, moment_id, audience, language, provider)
+        if hit is None:
+            raise HTTPException(status_code=404, detail="not cached")
+        return hit
     try:
         return pipeline.get_explanation(match, moment_id, audience, language, provider, refresh)
     except LLMError as exc:
