@@ -161,8 +161,8 @@ def retried(match, bad, audience="analyst"):
     "index, text, cites, expect",
     [
         (0, "A took the lead through Ben Brook at 11' to make it 0-1.", ["m_001"], "took the lead"),
-        (3, "Cal Cross missed his penalty in the shootout, which B won 1-0.", ["m_006"], "Cal Cross missed"),
-        (3, "B won the shootout 1-0 and lifted the trophy.", ["m_006"], "trophy"),
+        (2, "Dan Dale's shot was saved at 61', xG 0.40, a record chance.", ["m_004"], "record"),
+        (0, "B took the lead through Ben Brook at 11' with a penalty to make it 0-1.", ["m_001"], "penalty in regular time"),
         (0, "B took the lead through Ben Brook at 11' with a stunning strike to make it 0-1.", ["m_001"], "stunning"),
     ],
 )
@@ -171,7 +171,7 @@ def test_each_rule_triggers_a_retry_with_its_error_in_the_prompt(match, index, t
     assert report.method == "llm" and report.retried and not report.dropped
     assert any(expect in e for e in report.attempts[0].errors)
     assert expect in provider.calls[1]["user"]
-    assert [p.text for p in recap.paragraphs] == [p["text"] for p in GOOD["paragraphs"]]
+    assert [p.text for p in recap.paragraphs[:-1]] == [p["text"] for p in GOOD["paragraphs"]]
 
 
 def test_opinion_word_passes_first_time_for_the_fan(match):

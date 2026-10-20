@@ -1,0 +1,27 @@
+{
+  "language": "ta",
+  "reviewed": false,
+  "note": "First draft written by the model, not a native speaker. 'use' is the form the translator is told to write; 'accept' lists other forms (stems) the checker lets through. Correct by hand and set reviewed to true.",
+  "terms": {
+    "penalty": {"use": "பெனால்டி", "accept": []},
+    "penalty shootout": {"use": "பெனால்டி ஷூட்அவுட்", "accept": ["ஷூட்அவுட்", "ஷூட் அவுட்", "ஷூட்-அவுட்"]},
+    "shootout kick": {"use": "கிக்", "accept": ["பெனால்டி"]},
+    "goalkeeper": {"use": "கோல்கீப்பர்", "accept": ["கோல் கீப்பர்"]},
+    "save": {"use": "தடுக்கப்பட்டது", "accept": ["தடு"]},
+    "equaliser": {"use": "சமன்", "accept": ["சமநிலை"]},
+    "took the lead": {"use": "முன்னிலை", "accept": []},
+    "regained the lead": {"use": "மீண்டும் முன்னிலை", "accept": ["முன்னிலையை மீண்டும்", "முன்னிலை மீட்", "முன்னிலையை மீட்"]},
+    "reduced the deficit": {"use": "வித்தியாசத்தைக் குறைத்தது", "accept": ["வித்தியாசத்தை குறை", "வித்தியாசத்தைக் குறை", "இடைவெளியை குறை", "இடைவெளியைக் குறை", "பின்னடைவை குறை", "பின்னடைவைக் குறை"]},
+    "extra time": {"use": "கூடுதல் நேரம்", "accept": ["கூடுதல் நேர"]},
+    "stoppage time": {"use": "ஸ்டாப்பேஜ் டைம்", "accept": ["இன்ஜுரி டைம்", "இடைநிறுத்த நேர"]},
+    "substitution": {"use": "மாற்று வீரர்", "accept": ["மாற்றம்"]},
+    "big chance": {"use": "பெரிய வாய்ப்பு", "accept": ["பெரும் வாய்ப்பு"]},
+    "xG": {"use": "xG", "accept": []},
+    "own goal": {"use": "சுய கோல்", "accept": ["சொந்த கோல்"]},
+    "red card": {"use": "சிவப்பு அட்டை", "accept": ["ரெட் கார்டு", "ரெட் கார்ட்"]},
+    "second yellow": {"use": "இரண்டாவது மஞ்சள் அட்டை", "accept": ["இரண்டாவது மஞ்சள்"]},
+    "draw": {"use": "சமநிலை", "accept": ["டிரா", "சமன்"]},
+    "won on penalties": {"use": "பெனால்டியில் வெற்றி", "accept": ["பெனால்டி"]},
+    "momentum": {"use": "உத்வேகம்", "accept": ["வேகம்"]}
+  }
+}

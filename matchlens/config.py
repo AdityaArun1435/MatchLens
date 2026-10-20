@@ -56,6 +56,8 @@ import os  # noqa: E402
 
 PROMPTS_DIR = ROOT / "prompts"
 GENERATED_DIR = ROOT / "data" / "generated"
+NAMES_DIR = ROOT / "data" / "names"  # {lang}.json name maps, committed so they can be corrected by hand
+GLOSSARY_DIR = ROOT / "data" / "glossary"  # {lang}.json fixed football terms, committed, edit by hand
 
 LLM_PROVIDER = os.environ.get("MATCHLENS_LLM_PROVIDER", "ollama")  # "ollama"; add other providers in llm/factory.py
 OLLAMA_URL = os.environ.get("MATCHLENS_OLLAMA_URL", "http://localhost:11434")
@@ -68,7 +70,7 @@ OLLAMA_DISABLE_THINKING = True
 
 AUDIENCES = ("analyst", "broadcaster", "fan")
 LENGTHS = ("short", "medium")
-LANGUAGES = ("en",)  # Phase 3 adds "hi" and "ta" (plus prompts/language_<code>.md)
+LANGUAGES = ("en", "hi", "ta")  # hi and ta are never generated directly: validated English is translated (translate.py)
 PARAGRAPHS_PER_LENGTH = {"short": (2, 3), "medium": (4, 6)}
 
 # Wording the model must not use (checked on whole words, accents and case ignored; a hyphen also matches a space).
@@ -123,3 +125,41 @@ NAME_CHECK_SENTENCE_STARTERS = {
     "shot", "assist", "assisted", "window", "previous", "substitute", "card", "cards", "booking",
     "twice", "overall", "ultimately", "ending", "elsewhere", "neither", "whoever", "somehow", "anyone", "everyone",
 }
+
+
+# --- Phase 3: Hindi and Tamil ------------------------------------------------------------------------
+LANGUAGE_LABELS = {"en": "English", "hi": "Hindi", "ta": "Tamil"}
+# How far to trust each language; returned as `quality` in API responses and shown as a badge in the web app.
+LANGUAGE_QUALITY = {"en": "stable", "hi": "machine-translated", "ta": "experimental"}
+# Unicode ranges of each target script; a translation must be mostly written in its own script.
+SCRIPT_RANGES = {"hi": ("ऀ", "ॿ"), "ta": ("஀", "௿")}
+SCRIPT_MIN_SHARE = 0.5  # share of letters that must be in the target script
+# Latin-script words that may stay in a translation (acronyms are always allowed).
+TRANSLATION_LATIN_ALLOWED = {"xG", "xg", "VAR"}
+# Shown (in the target language, then English) in place of a paragraph whose translation failed validation twice.
+TRANSLATION_FALLBACK_NOTES = {
+    "hi": "अनुवाद जाँच में सफल नहीं हुआ, इसलिए यह अनुच्छेद अंग्रेज़ी में दिखाया गया है। (Shown in English: the Hindi translation did not pass the checks.)",
+    "ta": "மொழிபெயர்ப்பு சரிபார்ப்பில் தேறவில்லை, எனவே இந்தப் பத்தி ஆங்கிலத்தில் காட்டப்படுகிறது. (Shown in English: the Tamil translation did not pass the checks.)",
+}
+
+# REVIEW NEEDED: first-draft Hindi and Tamil equivalents of the English lists above, written by Claude, not by a native
+# speaker. Hindi matches as a substring (inflection and the matra signs make word boundaries unreliable); Tamil entries
+# are stems for the same reason. Please correct and extend them.
+BANNED_PHRASES["hi"] = (
+    "खिताब", "ख़िताब", "ट्रॉफी", "चैंपियन", "चैम्पियन", "इतिहास", "ऐतिहासिक", "मेज़बान", "मेजबान", "पसंदीदा",
+    "फेवरेट", "स्टेडियम", "भीड़", "दर्शक", "रिकॉर्ड", "कीर्तिमान",
+)
+BANNED_PHRASES["ta"] = (
+    "பட்டம்", "கோப்பை", "சாம்பியன்", "வரலாற", "புரவலர்", "விருப்பமான அணி", "ஸ்டேடியம்", "மைதானம்", "கூட்டம்",
+    "சாதனை",
+)
+# Tamil "உலகக் கோப்பை" (World Cup) contains the banned stem கோப்பை, so the competition wording is exempt.
+BANNED_PHRASE_EXEMPT = {"ta": ("உலகக் கோப்பை", "உலகக்கோப்பை", "உலகக் கோப்பையின்", "உலகக் கோப்பையில்")}
+OPINION_WORDS["hi"] = (
+    "नाटकीय", "शानदार", "बेहतरीन", "अद्भुत", "ज़बरदस्त", "जबरदस्त", "रोमांचक", "कमाल", "लाजवाब", "उत्कृष्ट", "बेमिसाल",
+    "अविश्वसनीय", "चतुराई", "हीरो", "नायक", "दुर्भाग्यपूर्ण", "कड़ा मुकाबला", "दमदार", "लचीलापन", "प्रभावशाली",
+)
+OPINION_WORDS["ta"] = (
+    "நாடகத்தனமான", "அற்புதமான", "அபாரமான", "சிறப்பான", "பிரமாதமான", "மிகச்சிறந்த", "திகைப்பூட்டும்", "பரபரப்பான",
+    "அசாதாரண", "ஹீரோ", "வீரத்தனமான", "கடுமையான போட்டி", "ஈர்க்கும்",
+)

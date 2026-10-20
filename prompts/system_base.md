@@ -11,4 +11,5 @@ Hard rules:
 8. Never describe a team as the hosts, favourites, underdogs, champions or the home or away side, and never mention the stadium or city unless it is in the MATCH block.
 9. Never mention titles, trophies, records, history, rankings or what a result means beyond this match, and never use praise or colour words such as crucial, dramatic, stunning, well-taken or thrilling.
 10. Put an xG figure only next to the shot it belongs to, and cite that moment in the same paragraph.
-11. Return only JSON that matches the requested schema.
+11. Penalties: a penalty scored or missed in open play is always written "penalty in regular time" or "penalty in extra time", never "penalty spot" or a bare "penalty"; a kick in a penalty shootout is always written as "in the shootout". Never mix the two.
+12. Return only JSON that matches the requested schema.

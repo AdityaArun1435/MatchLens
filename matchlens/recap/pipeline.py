@@ -1,4 +1,6 @@
 """Generate -> validate -> retry once with the errors -> drop invalid parts -> template fallback."""
+import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 
@@ -7,7 +9,8 @@ from pydantic import BaseModel, ValidationError
 from .. import config
 from ..llm import LLMError, LLMProvider
 from ..service import ProcessedMatch
-from . import cache, prompts
+from . import cache, names_i18n, prompts, rules, translate
+from .shootout import HIDDEN_FROM_MODEL, shootout_paragraph
 from .context import Context, build_context
 from .fallback import fallback_explanation, fallback_recap, fallback_title
 from .models import (
@@ -58,6 +61,11 @@ class _Attempt:
         return [i for i in self.items if not i[3]]
 
 
+def _english_only(language: str) -> None:
+    if language != "en":
+        raise ValueError("run_recap and run_explanation write English only; get_recap and get_explanation translate it")
+
+
 def _retry_prompt(user: str, errors: list[str]) -> str:
     listing = "\n".join(f"- {e}" for e in errors)
     return user + "\n\n" + prompts.render(prompts.load("retry"), errors=listing)
@@ -94,6 +102,10 @@ def _recap_attempt(data, validator: Validator, attempt_no: int) -> _Attempt:
         errs = validator.check_paragraph(text, p.cites)
         att.items.append((i, text, p.cites, errs))
         errors += [f"Paragraph {i}: {e}" for e in errs]
+    for idx, repeats in rules.repeated_sentences([text for _, text, _, _ in att.items]).items():
+        number, text, cites, errs = att.items[idx]
+        att.items[idx] = (number, text, cites, errs + repeats)
+        errors += [f"Paragraph {number}: {e}" for e in repeats]
     att.report.items_valid = len(att.valid)
     att.report.errors = errors
     return att
@@ -108,11 +120,12 @@ def run_recap(
     *,
     min_importance: float | None = None,
 ) -> tuple[Recap, ValidationReport]:
+    _english_only(language)
     cutoff = config.RECAP_MIN_IMPORTANCE if min_importance is None else min_importance
     report = ValidationReport(method="llm")
-    ctx = build_context(match, min_importance=cutoff)
+    ctx = build_context(match, min_importance=cutoff, exclude_types=HIDDEN_FROM_MODEL)
     if not ctx.shown_ids:
-        ctx = build_context(match, min_importance=0.0)
+        ctx = build_context(match, min_importance=0.0, exclude_types=HIDDEN_FROM_MODEL)
         report.notes.append(f"no moment reached importance {cutoff}; every moment was provided instead")
     if not ctx.shown_ids:
         report.method, report.fallback_reason = "fallback", "the match has no detected moments"
@@ -126,6 +139,7 @@ def run_recap(
         context=ctx.text,
         audience=audience,
         audience_instructions=prompts.load(f"audience_{audience}"),
+        wording=rules.wording_instructions(audience),
         length=length,
         length_instructions=prompts.load(f"length_{length}"),
         language_instructions=prompts.load(f"language_{language}"),
@@ -157,7 +171,11 @@ def run_recap(
     title = best.title
     if best.title_errors or not title:
         title, report.title_replaced = fallback_title(match), True
-    return Recap(title=title, paragraphs=[RecapParagraph(text=t, cites=c) for _, t, c, _ in best.valid]), report
+    paragraphs = [RecapParagraph(text=t, cites=c) for _, t, c, _ in best.valid]
+    if (shootout := shootout_paragraph(match, audience)) is not None:
+        paragraphs.append(shootout)
+        report.notes.append("the shootout paragraph was written from the kick list, not by the model")
+    return Recap(title=title, paragraphs=paragraphs), report
 
 
 # ---- explanation -----------------------------------------------------------------------------------
@@ -181,6 +199,7 @@ def _explain_attempt(data, validator: Validator, moment_id: str, attempt_no: int
 def run_explanation(
     match: ProcessedMatch, moment_id: str, audience: str, language: str, provider: LLMProvider
 ) -> tuple[MomentExplanation, ValidationReport]:
+    _english_only(language)
     ctx: Context = build_context(match, min_importance=0.0, target=moment_id)
     report = ValidationReport(method="llm")
     validator = Validator(match, ctx, audience, language)
@@ -191,6 +210,7 @@ def run_explanation(
         moment_id=moment_id,
         audience=audience,
         audience_instructions=prompts.load(f"audience_{audience}"),
+        wording=rules.wording_instructions(audience),
         language_instructions=prompts.load(f"language_{language}"),
         ids=", ".join(ctx.shown_ids),
     )
@@ -214,11 +234,23 @@ def run_explanation(
 
 
 # ---- cached entry points ---------------------------------------------------------------------------
-def get_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -> RecapResult:
-    path = cache.cache_file(
+def _names_key(language: str) -> int:
+    """Changes when the language's name map changes, so a hand correction invalidates cached translations."""
+    return int(hashlib.sha256(json.dumps(names_i18n.load_map(language).names, sort_keys=True).encode()).hexdigest()[:8], 16)
+
+
+def _recap_path(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider):
+    extra = {} if req.language == "en" else {"names": _names_key(req.language)}
+    return cache.cache_file(
         "recap", match.meta.match_id, provider.name,
-        audience=req.audience, length=req.length, language=req.language, cutoff=config.RECAP_MIN_IMPORTANCE,
+        audience=req.audience, length=req.length, language=req.language, cutoff=config.RECAP_MIN_IMPORTANCE, **extra,
     )
+
+
+def get_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -> RecapResult:
+    if req.language != "en":
+        return _get_translated_recap(match, req, provider)
+    path = _recap_path(match, req, provider)
     if not req.refresh and (hit := cache.read(path, RecapResult)):
         return hit.model_copy(update={"cached": True})
     start = time.perf_counter()
@@ -232,21 +264,50 @@ def get_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -
     return result
 
 
+def _get_translated_recap(match: ProcessedMatch, req: RecapRequest, provider: LLMProvider) -> RecapResult:
+    """Validated English first (cached on its own), then paragraph-by-paragraph translation."""
+    path = _recap_path(match, req, provider)
+    if not req.refresh and (hit := cache.read(path, RecapResult)):
+        return hit.model_copy(update={"cached": True})
+    english = get_recap(match, req.model_copy(update={"language": "en"}), provider)
+    recap, treport = translate.translate_recap(match, english.recap, req.language, req.audience, provider)
+    result = RecapResult(
+        match_id=match.meta.match_id, audience=req.audience, length=req.length, language=req.language,
+        model=provider.name, recap=recap, report=english.report.model_copy(update={"translation": treport}),
+        generation_seconds=round(english.generation_seconds + treport.seconds, 2), source_recap=english.recap,
+    )
+    if english.report.method == "llm" and treport.fallbacks == 0:  # a paragraph left in English is retried next time
+        cache.write(_recap_path(match, req, provider), result)  # recomputed: translating may have added names to the map
+    return result
+
+
+def _explain_path(match: ProcessedMatch, moment_id: str, audience: str, language: str, provider: LLMProvider):
+    extra = {} if language == "en" else {"names": _names_key(language)}
+    return cache.cache_file(
+        f"explain-{moment_id}", match.meta.match_id, provider.name, audience=audience, language=language, **extra
+    )
+
+
 def get_explanation(
     match: ProcessedMatch, moment_id: str, audience: str, language: str, provider: LLMProvider, refresh: bool = False
 ) -> ExplainResult:
-    path = cache.cache_file(
-        f"explain-{moment_id}", match.meta.match_id, provider.name, audience=audience, language=language
-    )
+    path = _explain_path(match, moment_id, audience, language, provider)
     if not refresh and (hit := cache.read(path, ExplainResult)):
         return hit.model_copy(update={"cached": True})
     start = time.perf_counter()
-    explanation, report = run_explanation(match, moment_id, audience, language, provider)
+    if language == "en":
+        explanation, report = run_explanation(match, moment_id, audience, language, provider)
+        source = None
+    else:
+        source_result = get_explanation(match, moment_id, audience, "en", provider, refresh)
+        explanation, treport = translate.translate_explanation(match, source_result.explanation, language, audience, provider)
+        report = source_result.report.model_copy(update={"translation": treport})
+        source = source_result.explanation
     result = ExplainResult(
         match_id=match.meta.match_id, moment_id=moment_id, audience=audience, language=language,
         model=provider.name, explanation=explanation, report=report,
-        generation_seconds=round(time.perf_counter() - start, 2),
+        generation_seconds=round(time.perf_counter() - start, 2), source_explanation=source,
     )
-    if report.method == "llm":
-        cache.write(path, result)
+    if report.method == "llm" and not (report.translation and report.translation.fallbacks):
+        cache.write(_explain_path(match, moment_id, audience, language, provider), result)
     return result

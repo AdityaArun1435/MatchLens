@@ -1,11 +1,13 @@
 """Request, output and report models for recaps and moment explanations."""
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from .. import config
 
 Audience = Literal["analyst", "broadcaster", "fan"]
 Length = Literal["short", "medium"]
-Language = Literal["en"]  # Phase 3: add "hi", "ta"
+Language = Literal["en", "hi", "ta"]
 
 
 class RecapRequest(BaseModel):
@@ -18,6 +20,8 @@ class RecapRequest(BaseModel):
 class RecapParagraph(BaseModel):
     text: str
     cites: list[str]
+    language: str | None = None  # set on translated recaps: the language this paragraph is actually in ("en" = fallback)
+    note: str | None = None  # why a paragraph is shown in English instead of the requested language
 
 
 class Recap(BaseModel):
@@ -30,6 +34,8 @@ class MomentExplanation(BaseModel):
     why_it_mattered: str
     context: str
     cites: list[str]
+    language: str | None = None
+    notes: list[str] = Field(default_factory=list)  # set when a field was left in English
 
 
 class DroppedItem(BaseModel):
@@ -47,6 +53,34 @@ class AttemptReport(BaseModel):
     llm_error: str | None = None  # provider or JSON failure instead of an answer
 
 
+class UnitTranslation(BaseModel):
+    """What happened to one translated unit (the title, a paragraph, or an explanation field)."""
+
+    unit: str  # "title", "paragraph 3", "why_it_mattered", ...
+    status: Literal["translated", "english_fallback"]
+    attempts: int = 1
+    errors: list[str] = Field(default_factory=list)  # every error found, across attempts
+    notes: list[str] = Field(default_factory=list)
+
+
+class TranslationReport(BaseModel):
+    language: str
+    units: list[UnitTranslation] = Field(default_factory=list)
+    names_added: list[str] = Field(default_factory=list)  # entries newly written to data/names/{lang}.json
+    names_missing: list[str] = Field(default_factory=list)
+    seconds: float = 0.0
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def fallbacks(self) -> int:
+        return sum(1 for u in self.units if u.status == "english_fallback")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def retries(self) -> int:
+        return sum(1 for u in self.units if u.attempts > 1)
+
+
 class ValidationReport(BaseModel):
     method: Literal["llm", "fallback"]
     attempts: list[AttemptReport] = Field(default_factory=list)
@@ -55,6 +89,7 @@ class ValidationReport(BaseModel):
     title_replaced: bool = False
     fallback_reason: str | None = None
     notes: list[str] = Field(default_factory=list)
+    translation: TranslationReport | None = None  # present when language != "en"; the rest describes the English source
 
 
 class RecapResult(BaseModel):
@@ -67,6 +102,13 @@ class RecapResult(BaseModel):
     report: ValidationReport
     generation_seconds: float
     cached: bool = False
+    source_recap: Recap | None = None  # the validated English recap a translation was made from
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def quality(self) -> str:
+        """How far to trust this language: stable, machine-translated or experimental (config.LANGUAGE_QUALITY)."""
+        return config.LANGUAGE_QUALITY.get(self.language, "stable")
 
 
 class ExplainResult(BaseModel):
@@ -79,6 +121,34 @@ class ExplainResult(BaseModel):
     report: ValidationReport
     generation_seconds: float
     cached: bool = False
+    source_explanation: MomentExplanation | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def quality(self) -> str:
+        """How far to trust this language: stable, machine-translated or experimental (config.LANGUAGE_QUALITY)."""
+        return config.LANGUAGE_QUALITY.get(self.language, "stable")
+
+
+def translation_schema() -> dict:
+    return {"type": "object", "properties": {"translation": {"type": "string"}}, "required": ["translation"]}
+
+
+def names_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "names": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"english": {"type": "string"}, "native": {"type": "string"}},
+                    "required": ["english", "native"],
+                },
+            }
+        },
+        "required": ["names"],
+    }
 
 
 def recap_schema(ids: list[str], length: str, paragraphs: tuple[int, int]) -> dict:

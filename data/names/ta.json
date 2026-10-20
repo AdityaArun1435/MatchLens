@@ -1,0 +1,28 @@
+{
+  "language": "ta",
+  "reviewed": false,
+  "note": "Draft: the model's first pass, then corrected by Claude (not a native speaker) for wrong sounds and words that mean something else in Tamil (e.g. distance, lord, German). Correct any name by hand and set reviewed to true; existing entries are never overwritten.",
+  "names": {
+    "Argentina": "அர்ஜென்டினா",
+    "France": "பிரான்ஸ்",
+    "Lionel Messi": "லியோனல் மெஸ்ஸி",
+    "Ángel Di María": "ஏஞ்சல் டி மரியா",
+    "Alexis Mac Allister": "அலெக்சிஸ் மெக் அலிஸ்டர்",
+    "Kylian Mbappé": "கிலியன் எம்பாப்பே",
+    "Marcus Thuram": "மார்க்கஸ் துராம்",
+    "Germán Pezzella": "ஹெர்மான் பெசெல்லா",
+    "Randal Kolo Muani": "ராண்டல் கோலோ முவானி",
+    "Kingsley Coman": "கிங்ஸ்லி கொமான்",
+    "Paulo Dybala": "பாவ்லோ டிபாலா",
+    "Aurélien Tchouaméni": "ஓரேலியன் சூவாமெனி",
+    "Leandro Paredes": "லியாண்ட்ரோ பரேடெஸ்",
+    "Gonzalo Montiel": "கோன்சலோ மொன்டியேல்",
+    "Ibrahima Konaté": "இப்ராஹிமா கோனாட்டே",
+    "Julián Álvarez": "ஜூலியன் அல்வாரெஸ்",
+    "Nahuel Molina": "நாஹுவேல் மொலினா",
+    "Adrien Rabiot": "அட்ரியன் ரபியோ",
+    "Eduardo Camavinga": "எடுவர்டோ கமாவிங்கா",
+    "Enzo Fernandez": "என்சோ பெர்னாண்டஸ்",
+    "Lautaro Martínez": "லவுதாரோ மார்டினெஸ்"
+  }
+}
